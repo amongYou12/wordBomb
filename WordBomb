@@ -14,7 +14,8 @@ local DictionaryURLs = {
     "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt",
     "https://gist.githubusercontent.com/letterpressfan/4145939/raw/4ca79142f49ce9ac8758cf3146ce14aa89b217cd/in-lp1.1-but-not-csw12.txt",
     "https://raw.githubusercontent.com/gangulwar/JKLM-Bomb-Party-BOT/refs/heads/main/dictionary.txt",
-    "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt"-- Link 2 (Replace this with your 2nd url)
+    "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt",
+    "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/Long%20WORDS.txt"-- Link 2 (Replace this with your 2nd url)
 }
 
 -- IMPORTANT: Only load words longer than this (Prevents short/weak words)
