@@ -1,9 +1,9 @@
 --[[
-    UNPATCHABOMB [DUAL DICTIONARY + FLEX MODE]
+    UNPATCHABOMB [DUAL DICTIONARY + FLEX + LOCK IN]
     - SOURCE: Supports Multiple Loadstrings.
-    - FLEX MODE: Scans for the longest possible word when enabled.
-    - UI: Modern Dark Theme.
-    - LOGIC: Natural Typing + Global History + Sanitization.
+    - FLEX MODE: Scans for longest word.
+    - LOCK IN MODE: Reduces all delays by 0.015s (Faster).
+    - UI: Modern Dark Theme (3-Button Layout).
 ]]--
 
 --------------------------------------------------------------------------------
@@ -14,22 +14,21 @@ local DictionaryURLs = {
     "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt",
     "https://gist.githubusercontent.com/letterpressfan/4145939/raw/4ca79142f49ce9ac8758cf3146ce14aa89b217cd/in-lp1.1-but-not-csw12.txt",
     "https://raw.githubusercontent.com/gangulwar/JKLM-Bomb-Party-BOT/refs/heads/main/dictionary.txt",
-    "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt",
-    "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/Long%20WORDS.txt"-- Link 2 (Replace this with your 2nd url)
+    "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt"-- Link 2 (Replace this with your 2nd url)
 }
 
--- IMPORTANT: Only load words longer than this (Prevents short/weak words)
 local MIN_WORD_LENGTH = 10 
 
 local TYPING_SETTINGS = {
-    StartSlowDelay = {0.065, 0.095}, 
-    BaseSpeed = {0.075, 0.08}, 
-    HesitationChance = 0.60,
-    HesitationDelay = {0.065, 0.075}, 
+    StartSlowDelay = {0.075, 0.075}, 
+    BaseSpeed = {0.06, 0.07}, 
+    HesitationChance = 0.40,
+    HesitationDelay = {0.055, 0.065}, 
     SubmitDelay = {0.05, 0.1}, 
-    TypoChance = 0.20, 
-    BackspaceSpeed = {0.065, 0.075} 
+    TypoChance = 0.25, 
+    BackspaceSpeed = {0.05, 0.065} 
 }
+
 
 --------------------------------------------------------------------------------
 -- 1. GLOBAL HISTORY & VARS
@@ -100,12 +99,15 @@ local BoxStroke = Instance.new("UIStroke"); BoxStroke.Parent = LetterBox; BoxStr
 local RerunButton = Instance.new("TextButton"); RerunButton.Name = "Run"; RerunButton.Parent = MainFrame; RerunButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113); RerunButton.Position = UDim2.new(0.73, 0, 0.45, 0); RerunButton.Size = UDim2.new(0.22, 0, 0.25, 0); RerunButton.Font = Enum.Font.GothamBold; RerunButton.Text = "▶"; RerunButton.TextColor3 = Color3.fromRGB(25, 25, 25); RerunButton.TextSize = 18
 local RunCorner = Instance.new("UICorner"); RunCorner.Parent = RerunButton
 
--- SPLIT BOTTOM BUTTONS
-local ResetButton = Instance.new("TextButton"); ResetButton.Name = "Reset"; ResetButton.Parent = MainFrame; ResetButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40); ResetButton.Position = UDim2.new(0.05, 0, 0.76, 0); ResetButton.Size = UDim2.new(0.42, 0, 0.16, 0); ResetButton.Font = Enum.Font.Gotham; ResetButton.Text = "Clear History"; ResetButton.TextColor3 = Color3.fromRGB(231, 76, 60); ResetButton.TextSize = 12
+-- BOTTOM BUTTONS (Reset, Flex, Lock In)
+local ResetButton = Instance.new("TextButton"); ResetButton.Name = "Reset"; ResetButton.Parent = MainFrame; ResetButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40); ResetButton.Position = UDim2.new(0.05, 0, 0.76, 0); ResetButton.Size = UDim2.new(0.28, 0, 0.16, 0); ResetButton.Font = Enum.Font.Gotham; ResetButton.Text = "Reset"; ResetButton.TextColor3 = Color3.fromRGB(231, 76, 60); ResetButton.TextSize = 12
 local ResetCorner = Instance.new("UICorner"); ResetCorner.CornerRadius = UDim.new(0, 6); ResetCorner.Parent = ResetButton
 
-local FlexButton = Instance.new("TextButton"); FlexButton.Name = "Flex"; FlexButton.Parent = MainFrame; FlexButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40); FlexButton.Position = UDim2.new(0.53, 0, 0.76, 0); FlexButton.Size = UDim2.new(0.42, 0, 0.16, 0); FlexButton.Font = Enum.Font.GothamBold; FlexButton.Text = "Flex: OFF"; FlexButton.TextColor3 = Color3.fromRGB(150, 150, 150); FlexButton.TextSize = 12
+local FlexButton = Instance.new("TextButton"); FlexButton.Name = "Flex"; FlexButton.Parent = MainFrame; FlexButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40); FlexButton.Position = UDim2.new(0.36, 0, 0.76, 0); FlexButton.Size = UDim2.new(0.28, 0, 0.16, 0); FlexButton.Font = Enum.Font.GothamBold; FlexButton.Text = "Flex: OFF"; FlexButton.TextColor3 = Color3.fromRGB(150, 150, 150); FlexButton.TextSize = 12
 local FlexCorner = Instance.new("UICorner"); FlexCorner.CornerRadius = UDim.new(0, 6); FlexCorner.Parent = FlexButton
+
+local LockInButton = Instance.new("TextButton"); LockInButton.Name = "LockIn"; LockInButton.Parent = MainFrame; LockInButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40); LockInButton.Position = UDim2.new(0.67, 0, 0.76, 0); LockInButton.Size = UDim2.new(0.28, 0, 0.16, 0); LockInButton.Font = Enum.Font.GothamBold; LockInButton.Text = "Lock: OFF"; LockInButton.TextColor3 = Color3.fromRGB(150, 150, 150); LockInButton.TextSize = 12
+local LockInCorner = Instance.new("UICorner"); LockInCorner.CornerRadius = UDim.new(0, 6); LockInCorner.Parent = LockInButton
 
 local MinimizeButton = Instance.new("TextButton"); MinimizeButton.Name = "Minimize"; MinimizeButton.Parent = TopBar; MinimizeButton.BackgroundTransparency = 1; MinimizeButton.Position = UDim2.new(1, -32, 0, 0); MinimizeButton.Size = UDim2.new(0, 32, 1, 0); MinimizeButton.Font = Enum.Font.GothamBold; MinimizeButton.Text = "-"; MinimizeButton.TextColor3 = Color3.fromRGB(200, 200, 200); MinimizeButton.TextSize = 20
 
@@ -128,7 +130,9 @@ end)
 -- 4. LOGIC ENGINE
 --------------------------------------------------------------------------------
 local isTyping = false 
-local isFlexMode = false -- Default to OFF
+local isFlexMode = false
+local isLockInMode = false
+local LOCK_IN_MODIFIER = 0.015 -- How much to speed up (reduce delay)
 
 local function SanitizeWord(str)
     if not str then return "" end
@@ -138,7 +142,16 @@ end
 local function GetRandomTime(timeTable)
     local minVal = timeTable[1]; local maxVal = timeTable[2]
     local minInt = math.floor(minVal * 10000); local maxInt = math.floor(maxVal * 10000)
-    return math.random(minInt, maxInt) / 10000
+    local val = math.random(minInt, maxInt) / 10000
+    
+    -- LOCK IN LOGIC: Reduce delay
+    if isLockInMode then
+        val = val - LOCK_IN_MODIFIER
+        -- Safety: Ensure delay never goes below 0.005 (instant can cause kicks sometimes)
+        if val < 0.005 then val = 0.005 end
+    end
+    
+    return val
 end
 
 local function IDA_autoType(rawWord)
@@ -188,28 +201,25 @@ local function IDA_PerformSearch()
     local input = SanitizeWord(LetterBox.Text):lower()
     if input == "" then return end
     
-    WordText.Text = isFlexMode and "Scanning for Longest..." or "Searching..."
+    WordText.Text = isFlexMode and "Scanning (Flex)..." or "Searching..."
     WordText.TextColor3 = Color3.fromRGB(255, 255, 0)
     
     local found = nil
     
     if isFlexMode then
-        -- FLEX MODE: Iterate ALL words to find the LONGEST match
+        -- FLEX MODE: Longest match
         local bestWord = ""
         for _, v in ipairs(ALL_WORDS) do
             if v:lower():find(input, 1, true) then
                 local cleanV = SanitizeWord(v)
                 if not CheckHistory(cleanV) then
-                    -- If this new word is longer than our current best, keep it
-                    if #cleanV > #bestWord then
-                        bestWord = cleanV
-                    end
+                    if #cleanV > #bestWord then bestWord = cleanV end
                 end
             end
         end
         if bestWord ~= "" then found = bestWord end
     else
-        -- NORMAL MODE: Stop at the first valid word (Faster)
+        -- NORMAL MODE: First match
         for _, v in ipairs(ALL_WORDS) do
             if v:lower():find(input, 1, true) then
                 local cleanV = SanitizeWord(v)
@@ -223,9 +233,7 @@ local function IDA_PerformSearch()
 
     if found then
         WordText.Text = "Typing: " .. found
-        WordText.TextColor3 = Color3.fromRGB(0, 200, 255)
-        
-        -- Mark as used immediately
+        WordText.TextColor3 = isLockInMode and Color3.fromRGB(255, 0, 255) or Color3.fromRGB(0, 200, 255)
         AddToHistory(found)
         IDA_autoType(found)
     else
@@ -257,7 +265,18 @@ FlexButton.MouseButton1Click:Connect(function()
         FlexButton.TextColor3 = Color3.fromRGB(46, 204, 113) -- Green
     else
         FlexButton.Text = "Flex: OFF"
-        FlexButton.TextColor3 = Color3.fromRGB(150, 150, 150) -- Grey
+        FlexButton.TextColor3 = Color3.fromRGB(150, 150, 150)
+    end
+end)
+
+LockInButton.MouseButton1Click:Connect(function()
+    isLockInMode = not isLockInMode
+    if isLockInMode then
+        LockInButton.Text = "Lock: ON"
+        LockInButton.TextColor3 = Color3.fromRGB(52, 152, 219) -- Blue
+    else
+        LockInButton.Text = "Lock: OFF"
+        LockInButton.TextColor3 = Color3.fromRGB(150, 150, 150)
     end
 end)
 
