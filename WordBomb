@@ -22,7 +22,7 @@ local DictionaryURLs = {
 local MIN_WORD_LENGTH = 10 
 
 local TYPING_SETTINGS = {
-    StartSlowDelay = {0.075, 0.085}, 
+    StartSlowDelay = {0.055, 0.075}, 
     BaseSpeed = {0.065, 0.075}, 
     HesitationChance = 0.45,
     HesitationDelay = {0.055, 0.065}, 
