@@ -1,9 +1,8 @@
 --[[
-    UNPATCHABOMB [DUAL DICTIONARY + FLEX + LOCK IN]
-    - SOURCE: Supports Multiple Loadstrings.
-    - FLEX MODE: Scans for longest word.
-    - LOCK IN MODE: Reduces all delays by 0.015s (Faster).
-    - UI: Modern Dark Theme (3-Button Layout).
+    UNPATCHABOMB [ULTIMATE EDITION]
+    - SOURCE: Multi-Dictionary Support.
+    - MODES: Flex (Longest), Short (Shortest), Lock In (Fastest).
+    - LOGIC: Mutually exclusive modes & smart history.
 ]]--
 
 --------------------------------------------------------------------------------
@@ -17,6 +16,7 @@ local DictionaryURLs = {
     "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt"-- Link 2 (Replace this with your 2nd url)
 }
 
+-- The bot will NEVER type words shorter than this, even in "Short Mode".
 local MIN_WORD_LENGTH = 10 
 
 local TYPING_SETTINGS = {
@@ -99,15 +99,25 @@ local BoxStroke = Instance.new("UIStroke"); BoxStroke.Parent = LetterBox; BoxStr
 local RerunButton = Instance.new("TextButton"); RerunButton.Name = "Run"; RerunButton.Parent = MainFrame; RerunButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113); RerunButton.Position = UDim2.new(0.73, 0, 0.45, 0); RerunButton.Size = UDim2.new(0.22, 0, 0.25, 0); RerunButton.Font = Enum.Font.GothamBold; RerunButton.Text = "▶"; RerunButton.TextColor3 = Color3.fromRGB(25, 25, 25); RerunButton.TextSize = 18
 local RunCorner = Instance.new("UICorner"); RunCorner.Parent = RerunButton
 
--- BOTTOM BUTTONS (Reset, Flex, Lock In)
-local ResetButton = Instance.new("TextButton"); ResetButton.Name = "Reset"; ResetButton.Parent = MainFrame; ResetButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40); ResetButton.Position = UDim2.new(0.05, 0, 0.76, 0); ResetButton.Size = UDim2.new(0.28, 0, 0.16, 0); ResetButton.Font = Enum.Font.Gotham; ResetButton.Text = "Reset"; ResetButton.TextColor3 = Color3.fromRGB(231, 76, 60); ResetButton.TextSize = 12
-local ResetCorner = Instance.new("UICorner"); ResetCorner.CornerRadius = UDim.new(0, 6); ResetCorner.Parent = ResetButton
+-- BOTTOM BUTTONS ROW (Reset | Short | Flex | Lock)
+local function CreateBtn(name, text, pos, color)
+    local btn = Instance.new("TextButton"); btn.Name = name; btn.Parent = MainFrame
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btn.Position = pos
+    btn.Size = UDim2.new(0.21, 0, 0.16, 0)
+    btn.Font = Enum.Font.GothamBold
+    btn.Text = text
+    btn.TextColor3 = color
+    btn.TextSize = 11
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = btn
+    return btn
+end
 
-local FlexButton = Instance.new("TextButton"); FlexButton.Name = "Flex"; FlexButton.Parent = MainFrame; FlexButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40); FlexButton.Position = UDim2.new(0.36, 0, 0.76, 0); FlexButton.Size = UDim2.new(0.28, 0, 0.16, 0); FlexButton.Font = Enum.Font.GothamBold; FlexButton.Text = "Flex: OFF"; FlexButton.TextColor3 = Color3.fromRGB(150, 150, 150); FlexButton.TextSize = 12
-local FlexCorner = Instance.new("UICorner"); FlexCorner.CornerRadius = UDim.new(0, 6); FlexCorner.Parent = FlexButton
-
-local LockInButton = Instance.new("TextButton"); LockInButton.Name = "LockIn"; LockInButton.Parent = MainFrame; LockInButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40); LockInButton.Position = UDim2.new(0.67, 0, 0.76, 0); LockInButton.Size = UDim2.new(0.28, 0, 0.16, 0); LockInButton.Font = Enum.Font.GothamBold; LockInButton.Text = "Lock: OFF"; LockInButton.TextColor3 = Color3.fromRGB(150, 150, 150); LockInButton.TextSize = 12
-local LockInCorner = Instance.new("UICorner"); LockInCorner.CornerRadius = UDim.new(0, 6); LockInCorner.Parent = LockInButton
+-- 0.03 gap start + (0.21 width + 0.04 gap)
+local ResetButton = CreateBtn("Reset", "Reset", UDim2.new(0.03, 0, 0.76, 0), Color3.fromRGB(231, 76, 60))
+local ShortButton = CreateBtn("Short", "Short: OFF", UDim2.new(0.27, 0, 0.76, 0), Color3.fromRGB(150, 150, 150))
+local FlexButton  = CreateBtn("Flex", "Flex: OFF", UDim2.new(0.51, 0, 0.76, 0), Color3.fromRGB(150, 150, 150))
+local LockInButton= CreateBtn("Lock", "Lock: OFF", UDim2.new(0.75, 0, 0.76, 0), Color3.fromRGB(150, 150, 150))
 
 local MinimizeButton = Instance.new("TextButton"); MinimizeButton.Name = "Minimize"; MinimizeButton.Parent = TopBar; MinimizeButton.BackgroundTransparency = 1; MinimizeButton.Position = UDim2.new(1, -32, 0, 0); MinimizeButton.Size = UDim2.new(0, 32, 1, 0); MinimizeButton.Font = Enum.Font.GothamBold; MinimizeButton.Text = "-"; MinimizeButton.TextColor3 = Color3.fromRGB(200, 200, 200); MinimizeButton.TextSize = 20
 
@@ -130,9 +140,10 @@ end)
 -- 4. LOGIC ENGINE
 --------------------------------------------------------------------------------
 local isTyping = false 
-local isFlexMode = false
-local isLockInMode = false
-local LOCK_IN_MODIFIER = 0.015 -- How much to speed up (reduce delay)
+local isFlexMode = false -- Longest
+local isShortMode = false -- Shortest
+local isLockInMode = false -- Speed
+local LOCK_IN_MODIFIER = 0.015 
 
 local function SanitizeWord(str)
     if not str then return "" end
@@ -144,10 +155,8 @@ local function GetRandomTime(timeTable)
     local minInt = math.floor(minVal * 10000); local maxInt = math.floor(maxVal * 10000)
     local val = math.random(minInt, maxInt) / 10000
     
-    -- LOCK IN LOGIC: Reduce delay
     if isLockInMode then
         val = val - LOCK_IN_MODIFIER
-        -- Safety: Ensure delay never goes below 0.005 (instant can cause kicks sometimes)
         if val < 0.005 then val = 0.005 end
     end
     
@@ -201,13 +210,16 @@ local function IDA_PerformSearch()
     local input = SanitizeWord(LetterBox.Text):lower()
     if input == "" then return end
     
-    WordText.Text = isFlexMode and "Scanning (Flex)..." or "Searching..."
+    local statusMsg = "Searching..."
+    if isFlexMode then statusMsg = "Scanning (Longest)..." end
+    if isShortMode then statusMsg = "Scanning (Shortest)..." end
+    WordText.Text = statusMsg
     WordText.TextColor3 = Color3.fromRGB(255, 255, 0)
     
     local found = nil
     
     if isFlexMode then
-        -- FLEX MODE: Longest match
+        -- 1. LONGEST WORD
         local bestWord = ""
         for _, v in ipairs(ALL_WORDS) do
             if v:lower():find(input, 1, true) then
@@ -218,8 +230,26 @@ local function IDA_PerformSearch()
             end
         end
         if bestWord ~= "" then found = bestWord end
+
+    elseif isShortMode then
+        -- 2. SHORTEST WORD
+        local bestWord = nil
+        local minLen = 999
+        for _, v in ipairs(ALL_WORDS) do
+            if v:lower():find(input, 1, true) then
+                local cleanV = SanitizeWord(v)
+                if not CheckHistory(cleanV) then
+                    if #cleanV < minLen then
+                        bestWord = cleanV
+                        minLen = #cleanV
+                    end
+                end
+            end
+        end
+        if bestWord then found = bestWord end
+
     else
-        -- NORMAL MODE: First match
+        -- 3. NORMAL (FIRST MATCH)
         for _, v in ipairs(ALL_WORDS) do
             if v:lower():find(input, 1, true) then
                 local cleanV = SanitizeWord(v)
@@ -258,8 +288,9 @@ ResetButton.MouseButton1Click:Connect(function()
     WordText.Text = "Loaded " .. #ALL_WORDS .. " Words"
 end)
 
-FlexButton.MouseButton1Click:Connect(function()
-    isFlexMode = not isFlexMode
+-- UPDATE VISUALS HELPER
+local function UpdateModes()
+    -- Update Flex Button
     if isFlexMode then
         FlexButton.Text = "Flex: ON"
         FlexButton.TextColor3 = Color3.fromRGB(46, 204, 113) -- Green
@@ -267,6 +298,27 @@ FlexButton.MouseButton1Click:Connect(function()
         FlexButton.Text = "Flex: OFF"
         FlexButton.TextColor3 = Color3.fromRGB(150, 150, 150)
     end
+
+    -- Update Short Button
+    if isShortMode then
+        ShortButton.Text = "Short: ON"
+        ShortButton.TextColor3 = Color3.fromRGB(241, 196, 15) -- Yellow
+    else
+        ShortButton.Text = "Short: OFF"
+        ShortButton.TextColor3 = Color3.fromRGB(150, 150, 150)
+    end
+end
+
+FlexButton.MouseButton1Click:Connect(function()
+    isFlexMode = not isFlexMode
+    if isFlexMode then isShortMode = false end -- Disable Short if Flex is on
+    UpdateModes()
+end)
+
+ShortButton.MouseButton1Click:Connect(function()
+    isShortMode = not isShortMode
+    if isShortMode then isFlexMode = false end -- Disable Flex if Short is on
+    UpdateModes()
 end)
 
 LockInButton.MouseButton1Click:Connect(function()
