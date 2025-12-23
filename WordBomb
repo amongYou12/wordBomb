@@ -1,30 +1,30 @@
 --[[
-    UNPATCHABOMB [ULTRA-NATURAL TYPING]
-    - NEW: Human-like "Burst" typing and rhythmic variance.
-    - NEW: Settings section to easily adjust speeds.
-    - FIXED: Slower start, realistic acceleration, and random hesitations.
+    UNPATCHABOMB [FIXED & OPTIMIZED]
+    - FIXED: "Stopping" bug caused by floating point math in randomizer.
+    - FIXED: Typo logic now respects your speed settings (no long pauses).
+    - ADDED: 'IsTyping' check to prevent overlapping if you click run twice.
 ]]--
 
 --------------------------------------------------------------------------------
--- 0. CONFIGURATION (Adjust Speeds Here)
+-- 0. CONFIGURATION (Your Custom Settings)
 --------------------------------------------------------------------------------
 local TYPING_SETTINGS = {
-    -- The delay for the first 3-5 letters (Simulates "finding" the word)
-    StartSlowDelay = {0.04, 0.065}, -- (Min, Max seconds)
+    -- The delay for the first 3-5 letters
+    StartSlowDelay = {0.04, 0.065}, 
 
-    -- The normal typing speed after the start (Not too fast)
-    BaseSpeed = {0.05, 0.07}, -- (Min, Max seconds)
+    -- The normal typing speed
+    BaseSpeed = {0.05, 0.07}, 
 
-    -- Chance to "hesitate" mid-word for a split second (Simulates a human hiccup)
-    HesitationChance = 0.20, -- 20% chance per letter
-    HesitationDelay = {0.055, 0.065}, -- (Min, Max seconds)
+    -- Chance to "hesitate"
+    HesitationChance = 0.20,
+    HesitationDelay = {0.055, 0.065}, 
 
-    -- Delay before hitting the "Enter" key
-    SubmitDelay = {0.02, 0.05}, -- (Min, Max seconds)
+    -- Delay before hitting "Enter"
+    SubmitDelay = {0.02, 0.05}, 
     
     -- Typo Logic
-    TypoChance = 0.20, -- 20% chance on long words
-    BackspaceSpeed = {0.05, 0.065} -- Speed of deleting wrong letters
+    TypoChance = 0.20, 
+    BackspaceSpeed = {0.05, 0.065} 
 }
 
 --------------------------------------------------------------------------------
@@ -69,7 +69,7 @@ TopFrame.Name = "TopFrame"; TopFrame.Parent = UnpatchabombFrame; TopFrame.Backgr
 MinimizeButton.Name = "MinimizeButton"; MinimizeButton.Parent = TopFrame; MinimizeButton.BackgroundTransparency = 1; MinimizeButton.Position = UDim2.new(0.9, 0, 0, 0); MinimizeButton.Size = UDim2.new(0, 28, 1, 0); MinimizeButton.Text = "-"; MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255); MinimizeButton.TextSize = 25
 
 --------------------------------------------------------------------------------
--- 3. DATA TABLES (BLANK AS REQUESTED)
+-- 3. DATA TABLES (Paste Words Here)
 --------------------------------------------------------------------------------
 local ENGLISH_WORDS = {
     "antidisestablishmentarianism", "floccinaucinihilipilification", "dichlorodiphenyltrichloroethane", "overintellectualization", "psychopharmacological", "electroencephalographically", "thyroparathyroidectomized", "radioimmunoelectrophoresis", "spectrophotofluorometrically", "ultramicroscopically", "counterdemonstrations", "institutionalization", "uncharacteristically", "misinterpretation", "interdenominational", "thermoelectrically", "hyperconsciousness", "prestidigitations", "microspectrophotometry", "deinstitutionalization", "conceptualization", "reconceptualization", "counterrevolutionaries", "bioluminescently", "nonrepresentationalism", "transubstantiational", "individualistically", "interchangeabilities", "antiterroristically", "electrophotographies", "multidimensionalities", "subcompartmentalization", "thermoregulations", "overinstrumentalization", "magnetohydrodynamics", "neurophysiologically", "microarchitectures", "pharmacotherapeutics", "internationalization", "counterproductiveness", "subcategorization", "overconceptualization", "counterproductively", "biotechnological", "multinationalities", "mischaracterization", "autobiographically", "chemolithotrophically", "reindustrialization", "photospectroscopically", "electrotherapeutically", "histopathologically", "ultramicroscopical", "microphotographies", "thermodynamically", "underrepresented", "counterintelligence", "intercontinental", "multidisciplinarily", "reconceptualizing", "overconceptualized", "ultrastructurally", "micromanagements", "neurophysiological", "decontaminations", "psychophysiological", "instrumentational", "anticonventionalism", "internationalistically", "neuroanatomically", "immunohistochemical", "electrocardiographies", "multidimensionality", "anticonstitutionally", "hyperinstrumentalism", "bioluminescentness", "intercommunicational", "microspectrophotometries", "thermoregulated", "electroencephalograph", "noninstitutionalized", "neuropsychological", "psychopharmacologically", "overindustrialization", "psychoneuroimmunology", "transubstantiationalism", "deinstitutionalizations", "electroencephalograms", "psychophysiologically", "counterrevolutionary", "thermoelectromagnetics", "subcontraoctave", "overindustrializations", "prestidigitationally", "overintellectualizations", "multidisciplinary", "neuropsychologically", "anticonventionalistically", "ultrastructuralizations", "reconceptualizationist", "psychoneuroimmunologically", "magnetohydrodynamically", "electrophysiologically", "institutionalization", "misinterpretation", "internationalization", "counterintelligence", "reconceptualization", "communication", "representation", "understanding", "administration", "transportation", "consideration", "establishment", "reconstruction", "discrimination", "interrogation", "environmental", "identification", "circumstantial", "recommendation", "administrative", "uncontrollable", "accomplishment", "documentation", "professionalism", "simplification", "unbelievable", "categorization", "determination", "visualization", "mathematical", "procrastination", "sophistication", "collaboration", "compatibility", "relationship", "appreciation", "underprivileged", "responsibility", "transportational", "qualification", "particularization", "disproportionate", "considerational", "conceptualization", "unquestionable", "interdisciplinary", "demonstration", "exaggeration", "professionalize", "instrumentation", "characterization", "accreditation", "imagination", "organizational", "confrontational", "interchangeable", "acknowledgment", "entrepreneurial", "substantiality", "incompatibility", "environmentally", "hypothetical", "interpretation", "multinational", "cooperation", "distribution", "functionality", "implementation", "administratively", "establishmentarian", "nonconventional", "unconventional", "consequential", "organizationally", "internationalist", "disciplinary", "constitutional", "extraordinary", "considerately", "reconsideration", "unintentional", "underestimation", "interlocutory", "communicational", "circumnavigation", "unquestionably", "instrumentally", "unimaginable", "organizationalism", "counterproductive", "individualization", "revolutionary", "reestablishment", "uncomfortable", "misunderstanding", "transformation", "uncontrollably", "administratively", "biotechnological", "overestimation", "democratization", "operationalization", "unfortunately", "revolutionarily", "considerable", "remarkable", "extraordinary", "unbelievable", "appreciation", "imagination", "observation", "determination", "relationship", "understanding", "cooperation", "organization", "transportation", "establishment", "representation", "development", "management", "administration", "documentation", "recommendation", "collaboration", "simplification", "identification", "communication", "disciplinary", "professional", "mathematical", "consideration", "qualification", "extraordinary", "instrumental", "demonstration", "particular", "interpretation", "accomplishment", "implementation", "configuration", "organizational", "relationship", "responsibility", "uncomfortable", "compatibility", "substantial", "underprivileged", "environmental", "confrontational", "exaggeration", "entrepreneur", "conceptualization", "individuality", "circumstantial", "acknowledgment", "distribution", "functionality", "hypothetical", "transportational", "reconsideration", "unquestionable", "extraordinarily", "unintentional", "implementation", "international", "underestimation", "misunderstanding", "professionalism", "revolutionary", "administratively", "organizationally", "counterproductive", "interpretational", "multinational", "operational", "considerably", "democratization", "communication", "representation", "collaboratively", "transportation", "environmentally", "organizationalism", "individualization", "conceptualizations", "uncomfortably", "extraordinariness", "responsibilities", "relationships", "professionalize", "documentation", "acknowledgments", "circumnavigations", "understandings", "considerations", "administrations", "observational", "mathematicality", "determinations", "simplifications", "implementations", "configurations", "organizationally", "transportational", "communications", "recommendations", "demonstrations", "circumstantially", "identifications", "Karyotypic", "Karyotypically", "Platykurtic", "Platykurtically", "Tachykinesia", "Bradykinins", "Bradykininogenic", "Caryokinetic", "Caryokinetically", "Cyanokinetic", "Myokinetical", "Kinetographical", "Kinetographically", "Ichthyophagy", "Ichthyophagous", "Ichthyophagist", "Caryokinesis", "Karyokinesis", "Kinetically", "Hyperkinetic", "Hyperkinesia", "Hypokinetic", "Hypokinesia", "Dyskinesias", "Tachykinesias", "Telekinetic", "Telekinetically", "Psychokinetic", "Psychokinetically", "Kinetography", "Kinetographs", "Kinetoscope", "Kinetoscopically", "Kinetophones", "Kinetogenic", "Caryophylly", "Pachydermic", "Pachydermatous", "Cyanobacteria", "Cyanobacterially", "Leukocytary", "Monocytary", "Karyoplasmic", "Karyoplasmically", "Karyorrhexis", "Karyolymphatic", "Karyogamies", "Karyological", "Karyologically", "Karyologists", "Karyometries", "Karyometrical", "Karyometrically", "Leukocytopathy", "Leukocytopathic", "Pachyonichia", "Pachyonychia", "Pachyglossa", "Pachyglossia", "Pachymeningial", "Karyostenosis", "Caryokineting", "Tachykardiac", "Bradykardiac", "Alkylatingly", "Caryophyllia", "Caryophyllin", "Caryophylloid", "Caryophyllaceous", "Karyomitotic", "Karyomitotically", "Karyothecae", "Karyothecal", "Karyolytically", "Hyperkinetically", "Hypokinetically", "Psychokinetical", "Cyanokinetical", "Myokinetically", "Kinetographical", "Karyoplastically", "Karyological", "Karyotypical", "Kinetographic", "Pachycephaly", "Pachycephalic", "Pachycephalous", "Karyoplasmic", "Pachydermatoid", "Polykaryocyte", "Kinetogenetic", "Bradykinesia", "Bradykinetic", "Bradykinetics", "Kinetoplastic", "Kinetoplastid", "Kinetochores", "Kinetochoric", "Myokinetical", "Caryophyllaceous", "Anthropomorphically", "Antidisestablishmentarianism", "Autobiographically", "Bioelectromagnetics", "Characteristically", "Chromatographically", "Cinematographically", "Counterintuitively", "Cryptographically", "Crystallography", "Cyclophosphamide", "Dacryocystitis", "Deoxyribonucleic", "Dermatoglyphics", "Diaphanousness", "Disproportionately", "Electrodynamics", "Electrophysiology", "Encephalography", "Epidemiologically", "Extemporaneously", "Extraterrestrially", "Flabbergastingly", "Gastroenterology", "Glossopharyngeal", "Hallucinogenic", "Hematologically", "Hepatopancreas", "Histopathologically", "Hydrodynamically", "Hypercholesterolemia", "Hypermetabolism", "Hypersensitivity", "Ichthyosaurians", "Immunocompromised", "Incomprehensibility", "Indistinguishable", "Intercontinental", "Interdisciplinary", "Internationalization", "Jurisprudentially", "Kinetographically", "Laryngopharynx", "Lexicographically", "Lymphangiography", "Magnetohydrodynamics", "Megalomaniacal", "Metamorphically", "Microbiological", "Microcrystalline", "Microphotography", "Monochromaticity", "Multidimensional", "Multifactorial", "Myocardiopathy", "Nanotechnology", "Neuroanatomical", "Neurobiological", "Neurochemically", "Neurocognitive", "Neuroendocrinology", "Neuropsychiatry", "Onychomycosis", "Ophthalmological", "Ornithologically", "Otolaryngology", "Paleoanthropology", "Paleontologically", "Pancreatoduodenal", "Parapsychologically", "Pathophysiology", "Pharmacokinetics", "Philanthropically", "Phosphorescence", "Photogrammetry", "Photosynthesis", "Phylogenetically", "Physiotherapeutic", "Plethysmography", "Pneumonoultramicroscopic", "Polyunsaturated", "Preternaturally", "Procrastination", "Pseudepigrapha", "Psychoanalysis", "Psychobiological", "Psychotherapeutic", "Radioactively", "Rehabilitation", "Socioeconomically", "Spectrophotometry", "Symptomatically", "Telecommunication", "Ultracentrifugally", "Xenotransplantation", "Absentmindedness", "Acclimatization", "Acoustoelectrics", "Adenocarcinomas", "Administratively", "Adrenocortical", "Aerothermodynamics", "Aforementioned", "Agonistically", "Ambidextrousness", "Aminopeptidases", "Amphiarthrodial", "Anachronistically", "Anaerobically", "Anesthesiology", "Anorthographically", "Antagonistically", "Anthropological", "Anticonvulsant", "Antidepressant", "Antiferromagnetic", "Antimicrobial", "Antiparasitically", "Antipathetically", "Antipsychotics", "Antisymmetric", "Arteriographical", "Asymmetrically", "Atmospherically", "Authentically", "Bacteriologically", "Ballistically", "Belligerently", "Bibliographical", "Bioavailability", "Biogeographical", "Biomechanical", "Biometallurgical", "Biometrically", "Biophysically", "Biotechnological", "Branchiostomatic", "Bronchoscopically", "Bureaucratically", "Calculability", "Calligraphically", "Calorimetrically", "Cannibalization", "Carcinogenicity", "Cardiographically", "Cardiorespiratory", "Cardiovascular", "Categorically", "Centralization", "Centrifugally", "Cerebrospinal", "Characteristic", "Chemiluminescent", "Chemosynthetic", "Chemotherapeutic", "Choreographically", "Chronologically", "Cinematography", "Circumstantial", "Classificatory", "Climatological", "Collaboratively", "Colorimetrically", "Combinatorically", "Commensurately", "Commercialization", "Communication", "Companionability", "Compartmentalize", "Compatibilities", "Compensation", "Complementarity", "Compressibility", "Computational", "Conceptualization", "Concomitantly", "Condescendingly", "Configuration", "Conglomeration", "Congratulation", "Conscientious", "Constitutional", "Contemporaneous", "Contextualization", "Contradictory", "Contribution", "Conventionally", "Conversational", "Credentialing", "Criminological", "Cryptanalysis", "Crystallographic", "Cytogenetics", "Cytoplasmically", "Dactylographical", "Decentralization", "Declassification", "Decompression", "Definitiveness", "Degeneratively", "Democratically", "Demographically", "Demonstratively", "Denominationally", "Deoxygenation", "Departmentally", "Depolarization", "Descriptively", "Destructively", "Deterministically", "Developmentally", "Diabolically", "Diagrammatically", "Dialectically", "Diamagnetically", "Diametrically", "Differentiable", "Differentially", "Dimensionality", "Diplomatically", "Disadvantaged", "Disappointedly", "Disproportionate", "Disrespectfully", "Dissimilarities", "Distinguishable", "Distributional", "Diversification", "Documentation", "Domestically", "Dramatization", "Ecclesiastical", "Ecocentrically", "Econometrically", "Effectiveness", "Egalitarianism", "Electrochemical", "Electromotive", "Electronically", "Electrostatics", "Emancipation", "Embarrassingly", "Embryologically", "Encapsulation", "Encephalopathy", "Encyclopedically", "Endocrinological", "Endothermically", "Energetically", "Enthusiastically", "Environmental", "Epistemological", "Equalization", "Equidistantly", "Equivalence", "Establishment", "Esthetically", "Etymologically", "Euphorically", "Evolutionarily", "Exacerbation", "Exaggeratingly", "Exceptionally", "Exemplification", "Exhibitionism", "Existentialism", "Expansionary", "Experimental", "Explanatorily", "Exponentially", "Expressionless", "Externalization", "Extinguished", "Extraordinarily", "Extravagantly", "Extravasation", "Facilitation", "Factitiousness", "Falsifiability", "Familiarization", "Fanaticizingly", "Fantasticness", "Fashionableness", "Faultlessness", "Favorableness", "Featherstitching", "Federalization", "Feeblemindedness", "Felicitousness", "Ferromagnetic", "Fertilizability", "Feudalization", "Fibrinogenolysis", "Fibrocartilage", "Fictionalization", "Filamentousness", "Filibustering", "Filmographical", "Financialization", "Flavorlessness", "Fluoridization", "Fluoroscopically", "Fluphenazines", "Foolhardiness", "Foreseeability", "Formalization", "Formativeness", "Formidableness", "Foundationally", "Fractionalization", "Fragmentarily", "Fragmentization", "Fraternization", "Frictionlessness", "Friendlessness", "Frighteningly", "Frivolousness", "Functionalities", "Functionalization", "Fundamentalism", "Fundamentalist", "Galvanometrically", "Gastroduodenal", "Gastrointestinal", "Generalization", "Generativeness", "Gentlemanliness", "Geochemically", "Geochronology", "Geometrically", "Geomorphology", "Geophysically", "Geopolitically", "Geostationary", "Geosynchronously", "Geothermetrically", "Gerontological", "Gesticulatingly", "Glaciologically", "Glamorousness", "Globalizational", "Glomerulonephritis", "Glottochronology", "Glutaraldehyde", "Glycerophosphates", "Goniometrically", "Governmentally", "Grammatically", "Granularization", "Gratuitousness", "Gravitationally", "Gymnastically", "Gynandromorphous", "Gynandromorphism", "Gyroscopically", "Habitabilities", "Habitualness", "Hagiographical", "Hallucinogenic", "Harmonization", "Heartbreakingly", "Heliocentricity", "Heliographical", "Hematologically", "Hemodynamically", "Hemoglobinopathy", "Hemorrhagically", "Hepatocellular", "Hepatotoxicity", "Hereditarily", "Hermeneutically", "Heterochromatic", "Heterogeneousness", "Heterosexuality", "Heterozygosity", "Heuristically", "Hierarchically", "Hieroglyphically", "Hippopotamuses", "Histochemical", "Histopathology", "Historicalness", "Historiography", "Homogeneously", "Homogenization", "Homosexuality", "Homozygosity", "Honorableness", "Hospitalization", "Humanitarianism", "Humorousness", "Hybridization", "Hydrocarbonaceous", "Hydrochlorides", "Hydrodynamicist", "Hydroelectricity", "Hydrographically", "Hydrologically", "Hydromechanics", "Hydrometallurgy", "Hydromorphology", "Hydroponically", "Hydrostatically", "Hypnotherapist", "Hypochondriacal", "Hypocritically", "Hypoglycemia", "Hypothetically", "Hysterically", "Iconographical", "Idealistically", "Identifiability", "Ideologically", "Idiographically", "Idiosyncrasies", "Idiosyncratic", "Illegalization", "Illegitimately", "Illogicalness", "Illuminatingly", "Illustratively", "Imaginatively", "Immaterialness", "Immeasurability", "Immediateness", "Immethodically", "Immobilization", "Immortalization", "Immunochemically", "Immunogenicity", "Immunologically", "Immunopathology", "Immunotherapy", "Impartiality", "Impassionedness", "Impeccableness", "Impenetrability", "Imperativeness", "Imperceptible", "Imperceptibly", "Imperfectionist", "Impermissibly", "Imperturbability", "Imperviousness", "Implementational", "Imponderability", "Impracticability", "Impracticableness", "Impressiveness", "Improbabilities", "Improvisationally", "Imprudentialism", "Impulsiveness", "Inaccessible", "Inaccessibility", "Inaccurateness", "Inadequateness", "Inadvertently", "Inappropriately", "Inarticulateness", "Incalculability", "Incandescence", "Incapacitation", "Incautiousness", "Incombustibility", "Incommunicable", "Incomparability", "Incompatibility", "Incompetency", "Incomprehensible", "Incompressibility", "Inconceivability", "Inconclusive", "Inconsiderate", "Inconsistently", "Inconspicuous", "Incontestability", "Inconveniently", "Incoordination", "Incorruptibility", "Incredulousness", "Incrementally", "Indecipherable", "Indecisiveness", "Indefinability", "Indestructible", "Indeterminable", "Indeterminancy", "Indifferently", "Indigenization", "Indispensability", "Indisputability", "Indistinguishable", "Individuality", "Individualization", "Individuation", "Indoctrination", "Industrialization", "Ineffectiveness", "Inefficiency", "Ineligibility", "Ineluctability", "Inevitableness", "Inexhaustible", "Inexpediently", "Inexpensiveness", "Inexplicability", "Inexpressively", "Inextricability", "Infallibility", "Infectiousness", "Infinitesimally", "Inflexibilities", "Informational", "Infrastructure", "Inharmoniously", "Inheritability", "Initializations", "Injudiciously", "Inquisitively", "Insatiability", "Inscriptions", "Inseparability", "Insignificant", "Insubstantial", "Adjacently", "Jacketless", "Jacketlike", "Jadishness", "Jaggedness", "Jangleless", "Jargonless", "Jaundicely", "Jauntiness", "Jewelboxed", "Unjacketed", "Jacketings", "Jaggediest", "Jangledoms", "Janglingly", "Jargonised", "Jargonises", "Jargonisms", "Jaspideous", "Jauntingly", "Javelineer", "Jawbonings", "Jawinesses", "Jeanlikest", "Jerkwaters", "Jetmanship", "Jitterbugs", "Jointuress", "Jollyboats", "Journalise", "Journalism", "Journalist", "Joyfulness", "Joyousness", "Judgements", "Judicialty", "Juggernaut", "Juicinesses", "Jumblement", "Jumpinesses", "Jungleness", "Justnesses", "Juventudes", "Nonjacketed", "Snoozingja", "Tenderjaws", "Underjacket", "Wrenchingly", "Yachtingja", "Winterjams", "Jackknifed", "Jackknives", "Japanizing", "Jarovizing", "Skyjacking", "Cheapjacks", "Jackhammer", "Jackknifes", "Lumberjack", "Sjambokked", "Supplejack", "Applejacks", "Highjacked", "Smokejacks", "Amberjacks", "Carjacking", "Jackalling", "Jackanapes", "Jackarooed", "Jackassery", "Jackerooed", "Jackfishes", "Jackfruits", "Jacklights", "Jackscrews", "Jacksmelts", "Jacksnipes", "Jackstraws", "Jaculating", "Jaculation", "Jaculatory", "Jaguarondi", "Jaguarundi", "Antihijack", "Autojumble", "Bluejacket", "Buckjumper", "Cajolement", "Cajoleries", "Clamjamfry", "Coadjacent", "Conjointly", "Disjointly", "Ejaculated", "Ejaculates", "Enjambment", "Interjacent", "Interject", "Intrajoint", "Jackroller", "CONSTITUTIONALLY", "REPRESENTATIONALLY", "INTERVENTIONISM", "TRANSFORMATIONALLY", "IDENTIFICATION", "CHARACTERIZATION", "DECONSTRUCTIONIST", "INDUSTRIALIZATION", "MISINTERPRETATION", "UNCONVENTIONALITY", "ESTABLISHMENTARIAN", "DISAPPOINTMENT", "COMPARTMENTALIZED", "SENTIMENTALIZATION", "ACKNOWLEDGEMENT", "ACCOMPLISHMENTS", "PRONOUNCEMENTS", "ENFRANCHISEMENTS", "UNDERDEVELOPMENT", "REPLENISHMENT", "KNOWLEDGEABLE", "UNMANAGEABLE", "INTERCHANGEABLE", "UNDERSTANDABLE", "UNQUESTIONABLE", "IMPERMEABLE", "DISAGREEABLE", "REPRESENTABLE", "UNFORGETTABLE", "UNREACHABLE", "LIGHTHEADEDNESS", "WHIMSICALNESS", "COMPREHENSIVENESS", "RESOURCEFULNESS", "TRUSTWORTHINESS", "THOUGHTFULNESS", "APPROPRIATENESS", "UNPREPAREDNESS", "CONSCIOUSNESS", "EFFECTIVENESS", "PALEONTOLOGIST", "MICROBIOLOGIST", "EPIDEMIOLOGIST", "NEUROPSYCHOLOGIST", "ANTHROPOLOGICALLY", "GEOMORPHOLOGICAL", "CHRONOLOGICALLY", "SOCIOLOGICALLY", "PHRASEOLOGICALLY", "CRYPTOZOOLOGICAL", "ADMINISTERING", "QUARTERMASTER", "ROLLERCOASTER", "CHARACTERISTIC", "MASTERPIECES", "PREPOSTEROUSLY", "GHOSTWRITTEN", "MONSTERHOOD", "STEREOTYPICAL", "REMASTERING", "AUTOBIOGRAPHICALLY", "PHOTOGRAPHICALLY", "CHOREOGRAPHICALLY", "LEXICOGRAPHICALLY", "CRYPTOBIOGRAPHY", "HISTORIOGRAPHY", "SPECTROGRAPHS", "CINEMATOGRAPHER", "ORTHOGRAPHICALLY", "XEROGRAPHICALLY", "INTERCONTINENTAL", "INTERDEPARTMENTAL", "INTERCHANGEABLY", "INTERCONNECTEDNESS", "INTERESTINGLY", "INTERDISCIPLINARY", "INTERMEDIARIES", "INTERPRETATION", "INTERROGATIVELY", "INTERRELATIONSHIP", "WEATHERPROOFING", "THERMODYNAMICS", "FEATHERWEIGHT", "NOTWITHSTANDING", "WEATHERSTRIPPING", "BROTHERHOODS", "NETHERLANDERS", "THERAPEUTICALLY", "WEATHERBEATEN", "ETHERIZATION", "APPRENTICESHIPS", "COMPANIONSHIPS", "RELATIONSHIPS", "SPORTSMANSHIPS", "CHAMPIONSHIPS", "CRAFTSMANSHIPS", "DICTATORSHIPS", "FELLOWSHIPS", "SCHOLARSHIPS", "AUTHORSHIPS", "PNEUMONIA", "PNEUMATICALLY", "PNEUMOCOCCUS", "PNEUMOTHORAX", "PNEUMOGRAPHY", "PNEUMONOLYSIS", "HYPERPNEUMATIC", "PNEUMOTACHOGRAPH", "PNEUMATICNESS", "PNEUMONECTOMIES", "PNEUMONIC", "PNEUMONIAE", "PNEUMONITIS", "PNEUMATOLOGY", "PNEUMOMETER", "PNEUMATOSIS", "PNEUMOCYSTIS", "PNEUMOPATHY", "PNEUMONOCONIOSIS", "PNEUMOTACTIC", "PNEUMATOPHORE", "PNEUMARTHROSIS", "PNEUMATOLYSIS", "PNEUMATOCELE", "PNEUMATOSCOPE", "PNEUMATOGRAPH", "PNEUMOMETER", "PNEUMODYNAMICS", "PNEUMOCENTESIS", "PNEUMOTACHOMETER", "CHTHONIC", "AUTOCHTHONOUS", "CHTHONIAN", "AUTOCHTHONS", "CHTHONICALLY", "CHTHONOPHAGY", "AUTOCHTHONY", "HEMIAUTOCHTHON", "ALLOCHTHONOUS", "CHTHONIIDAE", "CHTHONIAN", "CHTHONOPHAGIC", "ALLOCHTHONOUSLY", "AUTOCHTHONOUSLY", "ALLOCHTHONY", "HEMIAUTOCHTHONS", "CHTHONOLOGY", "CHTHONOPHAGIST", "CHTHONIID", "CHTHONOPLANES", "CHTHONICITY", "AUTOCHTHONIC", "ALLOCHTHONIC", "CHTHONIANISM", "AUTOCHTHONISM", "CHTHONOSCOPY", "CHTHONODYNAMICS", "CHTHONOPHILE", "CHTHONOPHOBIA", "CHTHONOSTEOLOGY", "CREMNOPHOBA", "GYMNOPAEDIC", "LIMNOPHILOUS", "PRUMNOPITYS", "GYMNOPAEDIES", "CREMNOPHOBIA", "GYMNOPHARE", "PRUMNOPITID", "GYMNOPTEROUS", "CREMNOPLANES", "GYMNOPHIONA", "GYMNOPHOBIA", "LIMNOPHILIC", "LIMNOPLANTON", "PRUMNOPITIDS", "GYMNOPEDIA", "GYMNOPLAST", "GYMNOPHOBES", "GYMNOPTERES", "GYMNOPLASTS", "GYMNOPHARES", "GYMNOPAEDICAL", "GYMNOPLASTIC", "GYMNOPODIOUS", "GYMNOSOPHIST", "GYMNOSPERMISM", "GYMNOSPERMOUS", "GYMNOSPERMAE", "GYMNOSPERMY", "GYMNOSTOMATOUS", "PSYCHOLOGICALLY", "PSYCHOTHERAPY", "PSYCHOSOMATIC", "PSYCHOANALYSIS", "PSYCHOPATHOLOGY", "PSYCHOTROPIC", "NEUROPSYCHIATRY", "PARAPSYCHOLOGY", "PSYCHOMETRICS", "PSYCHEDELICALLY", "PSYCHOANALYST", "PSYCHOBIOLOGY", "PSYCHODYNAMICS", "PSYCHOKINESIS", "PSYCHOLINGUISTIC", "PSYCHOMETRICIAN", "PSYCHONEUROTIC", "PSYCHOPATHICALLY", "PSYCHOPHYSICAL", "PSYCHOSEXUALITY", "PSYCHOSOCIALLY", "PSYCHOSYNTHESIS", "PSYCHOTECHNICAL", "PSYCHOTHERAPEUTIC", "PSYCHOTICALLY", "PSYCHOACTIVE", "PSYCHOACOUSTIC", "PSYCHOGENETICALLY", "PSYCHOGRAPHICAL", "PSYCHOPHARMACOLOGY", "QUOTIDIAN", "QUOTABILITY", "QUOTATION", "MISQUOTATION", "QUOTATIONAL", "UNQUOTABLE", "QUOTIENT", "OVERQUOTED", "QUOTABLENESS", "QUOTIDIANLY", "QUOTATIONALLY", "MISQUOTATIONS", "QUOTABLENESSES", "QUOTABILITY", "OVERQUOTING", "UNQUOTABLY", "QUOTATIONAL", "QUOTERIES", "QUOTATIVE", "QUOTINGLY", "QUOTIETY", "QUOTUM", "QUOTICITY", "QUOTABILITY", "QUOTIENTIAL", "QUOTEPART", "QUOTING", "QUOTATIONISM", "QUOTATIONIST", "QUOTATIONMARKS", "PNEUMONOULTRAMICROSCOPICSILICOVOLCANOCONIOSIS", "HIPPOPOTOMONSTROSESQUIPPEDALIOPHOBIA", "SUPERCALIFRAGILISTICEXPIALIDOCIOUS", "PSEUDOPSEUDOHYPOPARATHYROIDISM", "FLOCCINAUCINIHILIPILIFICATION", "ANTIDISESTABLISHMENTARIANISM", "HONORIFICABILITUDINITATIBUS", "ELECTROENCEPHALOGRAPHY", "DISCOMBOBULATED", "INCOMPREHENSIBILITY", "OVERPOWERINGLY", "DISEMPOWERMENT", "SUPERPOWERFUL", "ULTRAPOWERFUL", "POWDERCOATING", "CANDLEPOWERS", "POWERBROKINGS", "POWDERLESSNESS", "UNPOWDEREDNESS", "SUPERPOWERING", "DISPOWERMENTS", "POWERSTATIONS", "BRAINPOWERS", "HORSEPOWERS", "HYDROPOWERS", "WILLPOWERS", "MANPOWERING", "EMPOWERMENTS", "POWDERPUFFS", "POWDERMAKER", "INCOMPREHENSIBILITY", "INTERDISCIPLINARY", "UNBELIEVABILITY", "ELECTROENCEPHALOGRAPHY", "UNCONVENTIONALITY", "REPRESENTATIONALLY", "CONSTITUTIONALLY", "KNOWLEDGEABLY", "UNMANAGEABLE", "INTERCHANGEABLE", "EXTRAJUDICIALLY", "MICROBIOLOGICAL", "CHRONOLOGICALLY", "SOCIOLOGICALLY", "PHRASEOLOGICALLY", "AUTHENTICALLY", "METAPHORICALLY", "CHARACTERISTICALLY", "UNQUESTIONABLY", "PROPORTIONALLY", "POWERLESSNESS", "POWERLESSLY", "POWERLIFTING", "SUPERPOWERLESS", "POWDERLIKE", "POWDERLESS", "POWELLIZING", "POWELLISING", "POWERABLY", "POWERLIFTERS", "PROBOSCIDEAN", "PROBOSCIDIAN", "STROBOSCOPIC", "STROBOSCOPES", "THROMBOSES", "THROMBOSING", "THROMBOSTATIC", "VERBOSENESS", "VERBOSITIES", "EMBOSSEMENT", "EMBOSSMENTS", "LUMBOSACRAL", "GIBBOSITIES", "RIBOSOMALLY", "PROBOSCISES", "PROBOSCIDEANS", "STROBOSCOPIES", "BOSOMINESSES", "BOSCHVELDTS", "LUMBOSCIATIC", "PROBOSCIDATE", "PROBOSCIDIAL", "PROBOSCIDARY", "STROBOSCOPICAL", "EMBOSSABILITY", "DEOXYRIBOSES", "GIBBOSENESS", "VERBOSENESSES", "BOSOMFRIEND", "TURBOSHAFTS", "YESTERDAYNESS", "YELLOWISHNESS", "YESTEREVENINGS", "YESTERMORNINGS", "YEOMANRYWOMAN", "YESTERYEARS", "YELLOWHAMMERS", "YESTERLIGHTS", "YELLOWFINNED", "YELLOWJACKETS", "YESTERNIGHTS", "YESTERSPEECH", "YELLOWBELLIED", "YEWBERRYLIKE", "YELLOWWOODS", "YELLOWFISHES", "YELLOWHEADS", "YEASTINESSES", "YELLOWSTONE", "YESTERWEEKS", "YESTERSOONS", "YELLOWLEGS", "YELLOWTAILS", "YEASTLIKE", "YELLOWEDNESS", "YELLOWKNIFE", "YELLOWTHROAT", "YELLOWSNAKE", "YEOMANSHIP", "Barnyardgrass", "Barnyardgrasses", "Churchyardlike", "Graveyardlike", "Hagiarchical", "Hierarchical", "Hierarchically", "Hierarchising", "Hierarchized", "Hierarchizing", "Ichthyarchies", "Kailyardisms", "Magyarization", "Magyarizations", "Matriarchalist", "Matriarchies", "Megayachting", "Oligarchical", "Patriarchalism", "Patriarchalist", "Patriarchies", "Polyarchical", "Polyargyrite", "Polyargyrites", "Polyarteritis", "Polyarthritic", "Polyarthritis", "Polyarticular", "Polyarylates", "Slaughteryards", "Squirearchical", "Squirearchies", "Subhierarchy", "Superyachting", "Vineyardists", "Acquaintanceship"
@@ -85,18 +85,41 @@ local ENGLISH_WORDS_3 = {
 local ALL_WORD_LISTS = {ENGLISH_WORDS, ENGLISH_WORDS_2, ENGLISH_WORDS_3}
 
 --------------------------------------------------------------------------------
--- 4. THE ULTRA-NATURAL TYPING ENGINE
+-- 4. SAFE TYPING ENGINE
 --------------------------------------------------------------------------------
 local IDA_alreadyUsed = {}
+local isTyping = false -- Debounce to prevent overlapping
+
+-- Helper to safely get a random float without crashing on integers
+local function GetRandomTime(timeTable)
+    local minVal = timeTable[1]
+    local maxVal = timeTable[2]
+    
+    -- Safety check for settings
+    if minVal > maxVal then local temp = minVal; minVal = maxVal; maxVal = temp end
+    
+    -- Convert to integers for math.random, then back to float
+    -- Multiplied by 10000 to handle 3-4 decimal places (e.g. 0.055)
+    local minInt = math.floor(minVal * 10000)
+    local maxInt = math.floor(maxVal * 10000)
+    
+    if minInt == maxInt then return minVal end
+    
+    return math.random(minInt, maxInt) / 10000
+end
 
 local function IDA_autoType(word)
     if not word or word == "" then return end
+    if isTyping then return end -- Prevent double execution
+    isTyping = true
+    
     local vim = game:GetService("VirtualInputManager")
     
     local function press(key)
         pcall(function()
             vim:SendKeyEvent(true, key, false, game)
-            task.wait(math.random(20, 40)/1000) -- Real key-press duration
+            -- Key press duration (very short)
+            task.wait(0.01) 
             vim:SendKeyEvent(false, key, false, game)
         end)
     end
@@ -105,14 +128,22 @@ local function IDA_autoType(word)
     local mistakeMade = false
 
     while i <= #word do
-        -- 1. TYPO LOGIC
-        if #word > 8 and not mistakeMade and i > 3 and math.random() < TYPING_SETTINGS.TypoChance then
+        -- 1. TYPO LOGIC (Fixed to use your speed settings)
+        if #word > 7 and not mistakeMade and i > 2 and math.random() < TYPING_SETTINGS.TypoChance then
             mistakeMade = true
-            task.wait(math.random(200, 500)/1000) -- Hesitate before typo
-            press(Enum.KeyCode.Q) -- Press a random wrong key
-            task.wait(math.random(300, 600)/1000) -- Realize mistake
+            
+            -- Hesitate briefly before typo (Scaled to your base speed)
+            task.wait(GetRandomTime(TYPING_SETTINGS.BaseSpeed)) 
+            
+            press(Enum.KeyCode.Q) -- Wrong key
+            
+            -- Realize mistake (Quick pause)
+            task.wait(GetRandomTime(TYPING_SETTINGS.BaseSpeed)) 
+            
             press(Enum.KeyCode.Backspace)
-            task.wait(math.random(unpack(TYPING_SETTINGS.BackspaceSpeed)))
+            
+            -- Backspace delay
+            task.wait(GetRandomTime(TYPING_SETTINGS.BackspaceSpeed))
         end
 
         -- 2. GET CURRENT CHARACTER
@@ -121,28 +152,31 @@ local function IDA_autoType(word)
         
         if code then press(code) end
 
-        -- 3. DETERMINE DELAY (RAMPING)
+        -- 3. DETERMINE DELAY
         local currentDelay = 0
         if i <= math.random(3, 5) then
-            -- Initial "Finding the word" speed
-            currentDelay = math.random(TYPING_SETTINGS.StartSlowDelay[1] * 1000, TYPING_SETTINGS.StartSlowDelay[2] * 1000) / 1000
+            -- Start delay
+            currentDelay = GetRandomTime(TYPING_SETTINGS.StartSlowDelay)
         else
-            -- "Flow" speed
-            currentDelay = math.random(TYPING_SETTINGS.BaseSpeed[1] * 1000, TYPING_SETTINGS.BaseSpeed[2] * 1000) / 1000
+            -- Base speed
+            currentDelay = GetRandomTime(TYPING_SETTINGS.BaseSpeed)
         end
 
-        -- 4. RANDOM HESITATION (MID-WORD HICCUPS)
+        -- 4. RANDOM HESITATION
         if math.random() < TYPING_SETTINGS.HesitationChance then
-            currentDelay = currentDelay + (math.random(TYPING_SETTINGS.HesitationDelay[1] * 1000, TYPING_SETTINGS.HesitationDelay[2] * 1000) / 1000)
+            currentDelay = currentDelay + GetRandomTime(TYPING_SETTINGS.HesitationDelay)
         end
 
         task.wait(currentDelay)
         i = i + 1
     end
 
-    -- 5. FINAL SUBMIT (HUMAN PAUSE BEFORE ENTER)
-    task.wait(math.random(TYPING_SETTINGS.SubmitDelay[1] * 1000, TYPING_SETTINGS.SubmitDelay[2] * 1000) / 1000)
+    -- 5. FINAL SUBMIT
+    task.wait(GetRandomTime(TYPING_SETTINGS.SubmitDelay))
     press(Enum.KeyCode.Return)
+    
+    isTyping = false
+    WordText.Text = "Finished: " .. word
 end
 
 --------------------------------------------------------------------------------
@@ -162,8 +196,10 @@ local function IDA_findWord(substr)
 end
 
 local function IDA_PerformSearch()
+    if isTyping then return end -- Don't search if currently typing
     local input = LetterBox.Text
     if input == "" or input == "Insert Letters" then return end
+    
     WordText.Text = "Searching..."
     local found = IDA_findWord(input)
     if found then
@@ -176,5 +212,9 @@ end
 
 LetterBox.FocusLost:Connect(function(e) if e then IDA_PerformSearch() end end)
 RerunButton.MouseButton1Click:Connect(IDA_PerformSearch)
-ResetButton.MouseButton1Click:Connect(function() IDA_alreadyUsed = {}; WordText.Text = "History Cleared!" end)
+ResetButton.MouseButton1Click:Connect(function() 
+    if isTyping then return end
+    IDA_alreadyUsed = {} 
+    WordText.Text = "History Cleared!" 
+end)
 MinimizeButton.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible; MinimizeButton.Text = MainFrame.Visible and "-" or "+" end)
