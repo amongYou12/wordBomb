@@ -10,21 +10,21 @@
 --------------------------------------------------------------------------------
 local TYPING_SETTINGS = {
     -- The delay for the first 3-5 letters (Simulates "finding" the word)
-    StartSlowDelay = {0.18, 0.35}, -- (Min, Max seconds)
+    StartSlowDelay = {0.1, 0.2}, -- (Min, Max seconds)
 
     -- The normal typing speed after the start (Not too fast)
-    BaseSpeed = {0.08, 0.14}, -- (Min, Max seconds)
+    BaseSpeed = {0.07, 0.095}, -- (Min, Max seconds)
 
     -- Chance to "hesitate" mid-word for a split second (Simulates a human hiccup)
-    HesitationChance = 0.15, -- 15% chance per letter
-    HesitationDelay = {0.1, 0.4}, -- (Min, Max seconds)
+    HesitationChance = 0.30, -- 30% chance per letter
+    HesitationDelay = {0.08, 0.04}, -- (Min, Max seconds)
 
     -- Delay before hitting the "Enter" key
-    SubmitDelay = {0.4, 0.8}, -- (Min, Max seconds)
+    SubmitDelay = {0.06, 0.08}, -- (Min, Max seconds)
     
     -- Typo Logic
-    TypoChance = 0.10, -- 10% chance on long words
-    BackspaceSpeed = {0.1, 0.2} -- Speed of deleting wrong letters
+    TypoChance = 0.80, -- 80% chance on long words
+    BackspaceSpeed = {0.07, 0.09} -- Speed of deleting wrong letters
 }
 
 --------------------------------------------------------------------------------
