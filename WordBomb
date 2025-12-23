@@ -1,7 +1,7 @@
 --[[
-    UNPATCHABOMB [DUAL DICTIONARY VERSION]
+    UNPATCHABOMB [DUAL DICTIONARY + FLEX MODE]
     - SOURCE: Supports Multiple Loadstrings.
-    - FILTER: Only loads words >= 10 letters to ensure you win.
+    - FLEX MODE: Scans for the longest possible word when enabled.
     - UI: Modern Dark Theme.
     - LOGIC: Natural Typing + Global History + Sanitization.
 ]]--
@@ -9,7 +9,6 @@
 --------------------------------------------------------------------------------
 -- 0. CONFIGURATION
 --------------------------------------------------------------------------------
--- Put your links here. You can add as many as you want.
 local DictionaryURLs = {
     --"https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/CollinsScrabble", -- Link 1
     "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt",
@@ -31,9 +30,8 @@ local TYPING_SETTINGS = {
     BackspaceSpeed = {0.065, 0.075} 
 }
 
-
 --------------------------------------------------------------------------------
--- 1. GLOBAL HISTORY
+-- 1. GLOBAL HISTORY & VARS
 --------------------------------------------------------------------------------
 local GlobalEnv = (getgenv and getgenv()) or _G
 if not GlobalEnv._Unpatchabomb_History_Final then GlobalEnv._Unpatchabomb_History_Final = {} end
@@ -43,36 +41,27 @@ local function AddToHistory(word) GlobalEnv._Unpatchabomb_History_Final[word:low
 local function ClearHistory() GlobalEnv._Unpatchabomb_History_Final = {} end
 
 local CoreGui = game:GetService("CoreGui")
-local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ParentTarget = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or CoreGui
 
 if ParentTarget:FindFirstChild("Unpatchabomb") then ParentTarget.Unpatchabomb:Destroy() end
 
 --------------------------------------------------------------------------------
--- 2. SMART LOADER (Multi-Source + Filters)
+-- 2. SMART LOADER
 --------------------------------------------------------------------------------
 local ALL_WORDS = {}
 
 local function LoadRemoteWords()
     ALL_WORDS = {}
-    local seenWords = {} -- Used to prevent duplicates if both lists have the same word
+    local seenWords = {} 
     local count = 0
-    local failedLinks = 0
     
     for _, url in ipairs(DictionaryURLs) do
-        -- Skip empty placeholders
         if url:find("http") then
-            local success, content = pcall(function()
-                return game:HttpGet(url)
-            end)
-            
+            local success, content = pcall(function() return game:HttpGet(url) end)
             if success then
                 for line in content:gmatch("[^\r\n]+") do
-                    -- Clean the line (remove invisible junk)
                     local cleanLine = line:match("^%s*(.-)%s*$")
-                    
-                    -- Check Length AND if we haven't added it yet
                     if cleanLine and #cleanLine >= MIN_WORD_LENGTH and not seenWords[cleanLine] then
                         seenWords[cleanLine] = true
                         table.insert(ALL_WORDS, cleanLine)
@@ -81,12 +70,9 @@ local function LoadRemoteWords()
                 end
             else
                 warn("Unpatchabomb: Failed to load URL: " .. url)
-                failedLinks = failedLinks + 1
             end
         end
     end
-    
-    -- Clear the memory of the check table
     seenWords = nil 
     return count
 end
@@ -103,18 +89,22 @@ local TopBar = Instance.new("Frame"); TopBar.Name = "TopBar"; TopBar.Parent = Ma
 local TopBarCorner = Instance.new("UICorner"); TopBarCorner.CornerRadius = UDim.new(0, 8); TopBarCorner.Parent = TopBar
 local Title = Instance.new("TextLabel"); Title.Parent = TopBar; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 12, 0, 0); Title.Size = UDim2.new(0.5, 0, 1, 0); Title.Font = Enum.Font.GothamBold; Title.Text = "UNPATCHABOMB"; Title.TextColor3 = Color3.fromRGB(255, 255, 255); Title.TextSize = 14; Title.TextXAlignment = Enum.TextXAlignment.Left
 
--- Load words immediately
 local wordCount = LoadRemoteWords()
-local WordText = Instance.new("TextLabel"); WordText.Name = "Status"; WordText.Parent = MainFrame; WordText.BackgroundTransparency = 1; WordText.Position = UDim2.new(0, 0, 0.25, 0); WordText.Size = UDim2.new(1, 0, 0.15, 0); WordText.Font = Enum.Font.GothamMedium; WordText.Text = (wordCount > 0 and "Loaded " .. wordCount .. " Words (Combined)") or "Error/No Words!"; WordText.TextColor3 = Color3.fromRGB(150, 150, 150); WordText.TextSize = 14
+local WordText = Instance.new("TextLabel"); WordText.Name = "Status"; WordText.Parent = MainFrame; WordText.BackgroundTransparency = 1; WordText.Position = UDim2.new(0, 0, 0.25, 0); WordText.Size = UDim2.new(1, 0, 0.15, 0); WordText.Font = Enum.Font.GothamMedium; WordText.Text = (wordCount > 0 and "Loaded " .. wordCount .. " Words") or "Error/No Words!"; WordText.TextColor3 = Color3.fromRGB(150, 150, 150); WordText.TextSize = 14
 
-local LetterBox = Instance.new("TextBox"); LetterBox.Name = "Input"; LetterBox.Parent = MainFrame; LetterBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40); LetterBox.Position = UDim2.new(0.05, 0, 0.45, 0); LetterBox.Size = UDim2.new(0.65, 0, 0.25, 0); LetterBox.Font = Enum.Font.GothamBold; LetterBox.PlaceholderText = "Type letters here..."; LetterBox.Text = ""; LetterBox.TextColor3 = Color3.fromRGB(255, 255, 255); LetterBox.TextSize = 16
+local LetterBox = Instance.new("TextBox"); LetterBox.Name = "Input"; LetterBox.Parent = MainFrame; LetterBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40); LetterBox.Position = UDim2.new(0.05, 0, 0.45, 0); LetterBox.Size = UDim2.new(0.65, 0, 0.25, 0); LetterBox.Font = Enum.Font.GothamBold; LetterBox.PlaceholderText = "Type letters..."; LetterBox.Text = ""; LetterBox.TextColor3 = Color3.fromRGB(255, 255, 255); LetterBox.TextSize = 16
 local BoxCorner = Instance.new("UICorner"); BoxCorner.Parent = LetterBox
 local BoxStroke = Instance.new("UIStroke"); BoxStroke.Parent = LetterBox; BoxStroke.Color = Color3.fromRGB(60, 60, 60)
 
 local RerunButton = Instance.new("TextButton"); RerunButton.Name = "Run"; RerunButton.Parent = MainFrame; RerunButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113); RerunButton.Position = UDim2.new(0.73, 0, 0.45, 0); RerunButton.Size = UDim2.new(0.22, 0, 0.25, 0); RerunButton.Font = Enum.Font.GothamBold; RerunButton.Text = "▶"; RerunButton.TextColor3 = Color3.fromRGB(25, 25, 25); RerunButton.TextSize = 18
 local RunCorner = Instance.new("UICorner"); RunCorner.Parent = RerunButton
 
-local ResetButton = Instance.new("TextButton"); ResetButton.Name = "Reset"; ResetButton.Parent = MainFrame; ResetButton.BackgroundTransparency = 1; ResetButton.Position = UDim2.new(0, 0, 0.78, 0); ResetButton.Size = UDim2.new(1, 0, 0.15, 0); ResetButton.Font = Enum.Font.Gotham; ResetButton.Text = "Clear History"; ResetButton.TextColor3 = Color3.fromRGB(231, 76, 60); ResetButton.TextSize = 12
+-- SPLIT BOTTOM BUTTONS
+local ResetButton = Instance.new("TextButton"); ResetButton.Name = "Reset"; ResetButton.Parent = MainFrame; ResetButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40); ResetButton.Position = UDim2.new(0.05, 0, 0.76, 0); ResetButton.Size = UDim2.new(0.42, 0, 0.16, 0); ResetButton.Font = Enum.Font.Gotham; ResetButton.Text = "Clear History"; ResetButton.TextColor3 = Color3.fromRGB(231, 76, 60); ResetButton.TextSize = 12
+local ResetCorner = Instance.new("UICorner"); ResetCorner.CornerRadius = UDim.new(0, 6); ResetCorner.Parent = ResetButton
+
+local FlexButton = Instance.new("TextButton"); FlexButton.Name = "Flex"; FlexButton.Parent = MainFrame; FlexButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40); FlexButton.Position = UDim2.new(0.53, 0, 0.76, 0); FlexButton.Size = UDim2.new(0.42, 0, 0.16, 0); FlexButton.Font = Enum.Font.GothamBold; FlexButton.Text = "Flex: OFF"; FlexButton.TextColor3 = Color3.fromRGB(150, 150, 150); FlexButton.TextSize = 12
+local FlexCorner = Instance.new("UICorner"); FlexCorner.CornerRadius = UDim.new(0, 6); FlexCorner.Parent = FlexButton
 
 local MinimizeButton = Instance.new("TextButton"); MinimizeButton.Name = "Minimize"; MinimizeButton.Parent = TopBar; MinimizeButton.BackgroundTransparency = 1; MinimizeButton.Position = UDim2.new(1, -32, 0, 0); MinimizeButton.Size = UDim2.new(0, 32, 1, 0); MinimizeButton.Font = Enum.Font.GothamBold; MinimizeButton.Text = "-"; MinimizeButton.TextColor3 = Color3.fromRGB(200, 200, 200); MinimizeButton.TextSize = 20
 
@@ -137,10 +127,10 @@ end)
 -- 4. LOGIC ENGINE
 --------------------------------------------------------------------------------
 local isTyping = false 
+local isFlexMode = false -- Default to OFF
 
 local function SanitizeWord(str)
     if not str then return "" end
-    -- Remove non-alphanumeric to prevent ghost char errors
     return str:gsub("[^a-zA-Z0-9%-]", "")
 end
 
@@ -165,7 +155,7 @@ local function IDA_autoType(rawWord)
     end
 
     for i = 1, #word do
-        -- Typo
+        -- Typo Logic
         if #word > 7 and i == 4 and math.random() < TYPING_SETTINGS.TypoChance then
             task.wait(GetRandomTime(TYPING_SETTINGS.BaseSpeed)) 
             press(Enum.KeyCode.Q)
@@ -197,19 +187,35 @@ local function IDA_PerformSearch()
     local input = SanitizeWord(LetterBox.Text):lower()
     if input == "" then return end
     
-    WordText.Text = "Searching..."
+    WordText.Text = isFlexMode and "Scanning for Longest..." or "Searching..."
     WordText.TextColor3 = Color3.fromRGB(255, 255, 0)
     
     local found = nil
-    -- Since the list is huge, we loop through it efficiently
-    for _, v in ipairs(ALL_WORDS) do
-        -- Simple check first
-        if v:lower():find(input, 1, true) then
-            local cleanV = SanitizeWord(v)
-            if not CheckHistory(cleanV) then
-                found = cleanV
-                AddToHistory(found)
-                break
+    
+    if isFlexMode then
+        -- FLEX MODE: Iterate ALL words to find the LONGEST match
+        local bestWord = ""
+        for _, v in ipairs(ALL_WORDS) do
+            if v:lower():find(input, 1, true) then
+                local cleanV = SanitizeWord(v)
+                if not CheckHistory(cleanV) then
+                    -- If this new word is longer than our current best, keep it
+                    if #cleanV > #bestWord then
+                        bestWord = cleanV
+                    end
+                end
+            end
+        end
+        if bestWord ~= "" then found = bestWord end
+    else
+        -- NORMAL MODE: Stop at the first valid word (Faster)
+        for _, v in ipairs(ALL_WORDS) do
+            if v:lower():find(input, 1, true) then
+                local cleanV = SanitizeWord(v)
+                if not CheckHistory(cleanV) then
+                    found = cleanV
+                    break
+                end
             end
         end
     end
@@ -217,6 +223,9 @@ local function IDA_PerformSearch()
     if found then
         WordText.Text = "Typing: " .. found
         WordText.TextColor3 = Color3.fromRGB(0, 200, 255)
+        
+        -- Mark as used immediately
+        AddToHistory(found)
         IDA_autoType(found)
     else
         WordText.Text = "No Word Found"
@@ -238,6 +247,17 @@ ResetButton.MouseButton1Click:Connect(function()
     task.wait(1)
     WordText.TextColor3 = Color3.fromRGB(150, 150, 150)
     WordText.Text = "Loaded " .. #ALL_WORDS .. " Words"
+end)
+
+FlexButton.MouseButton1Click:Connect(function()
+    isFlexMode = not isFlexMode
+    if isFlexMode then
+        FlexButton.Text = "Flex: ON"
+        FlexButton.TextColor3 = Color3.fromRGB(46, 204, 113) -- Green
+    else
+        FlexButton.Text = "Flex: OFF"
+        FlexButton.TextColor3 = Color3.fromRGB(150, 150, 150) -- Grey
+    end
 end)
 
 MinimizeButton.MouseButton1Click:Connect(function()
