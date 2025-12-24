@@ -1,10 +1,7 @@
 --[[
-    UNPATCHABOMB [v12 - HUMAN FLEX EDITION]
-    - FLEX MODE REWORK:
-      1. Generally Slower: Delays are increased for long words.
-      2. Bursty: Random "speed ups" to mimic typing familiar chunks (e.g., "ing").
-      3. Typos: Added logic to make mistakes, backspace, and correct them.
-    - FEATURES: Session Blacklist, Save/Blacklist, Dragging, Resizable.
+    UNPATCHABOMB [v13 - SMART INPUT EDITION]
+    - NEW: In "First Mode", the script skips letters you have already typed.
+    - FEATURES: Human Flex Typing, Session Blacklist, Save/Blacklist, Full UI.
 ]]--
 
 --------------------------------------------------------------------------------
@@ -13,7 +10,7 @@
 local MIN_LETTER_COUNT = 3
 
 local LL_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/ll_blacklist.lua"
-local WB_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForWordbomb.txt"
+local WB_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/wb_blacklist.lua"
 
 local DictionaryURLs = {
     "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt",
@@ -22,15 +19,15 @@ local DictionaryURLs = {
     "https://gist.githubusercontent.com/letterpressfan/4145939/raw/4ca79142f49ce9ac8758cf3146ce14aa89b217cd/in-lp1.1-but-not-csw12.txt"
 }
 
+-- TYPING SETTINGS (Humanized)
 local TYPING_SETTINGS = {
-    BaseSpeed = {0.060, 0.085},      -- Standard Typing Speed
-    StartSlowDelay = {0.08, 0.12},   -- Delay before starting
-    HesitationChance = 0.15,         -- Chance to pause randomly
-    HesitationDelay = {0.15, 0.25},  -- How long the pause is
-    SubmitDelay = {0.05, 0.1}        -- Delay before pressing Enter
+    BaseSpeed = {0.070, 0.085},      
+    StartSlowDelay = {0.08, 0.12},   
+    HesitationChance = 0.25,         
+    HesitationDelay = {0.15, 0.25},  
+    SubmitDelay = {0.05, 0.1}        
 }
 
--- FLEX MODE SPECIFIC SETTINGS (The "Human" Factor)
 local FLEX_MODIFIERS = {
     SpeedAdder = 0.025,        -- Adds 45ms (Makes it slower overall)
     BurstChance = 0.40,        -- 30% chance to "speed up" for a letter (The Burst)
@@ -39,7 +36,7 @@ local FLEX_MODIFIERS = {
     HesitationAdd = 0.15       -- Adds 15% more hesitation chance
 }
 
-local LOCK_IN_SPEED_BOOST = 0.040 -- Stacks with everything (Makes it faster)
+local LOCK_IN_SPEED_BOOST = 0.040 
 
 --------------------------------------------------------------------------------
 -- 1. UTILS & SETUP
@@ -73,7 +70,7 @@ local Corner = Instance.new("UICorner"); Corner.Parent = Main
 
 local Top = Instance.new("Frame"); Top.Parent = Main; Top.BackgroundColor3 = Color3.fromRGB(30,30,30); Top.Size = UDim2.new(1,0,0,35)
 local TopCorner = Instance.new("UICorner"); TopCorner.Parent = Top
-local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v12 [HUMAN FLEX]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = "GothamBold"; Title.TextXAlignment = "Left"; Title.TextSize = 14
+local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v13 [SMART SKIP]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = "GothamBold"; Title.TextXAlignment = "Left"; Title.TextSize = 14
 
 local WordStatus = Instance.new("TextLabel"); WordStatus.Parent = Main; WordStatus.Position = UDim2.new(0,0,0.11,0); WordStatus.Size = UDim2.new(1,0,0.08,0); WordStatus.BackgroundTransparency = 1; WordStatus.Text = "Dictionary Loading..."; WordStatus.TextColor3 = Color3.fromRGB(200,200,200); WordStatus.Font = "GothamMedium"; WordStatus.TextSize = 13
 
@@ -114,7 +111,7 @@ Top.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInpu
 UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then local delta = input.Position - dragStart; Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
 
 --------------------------------------------------------------------------------
--- 3. HUMANIZED TYPING ENGINE
+-- 3. HUMANIZED TYPING ENGINE (WITH SMART SKIP)
 --------------------------------------------------------------------------------
 local function FetchBlacklist(url, target)
     local s, content = pcall(function() return game:HttpGet(url) end)
@@ -134,74 +131,49 @@ local function GetRandomTime(tbl)
     return (math.random(tbl[1]*1000, tbl[2]*1000) / 1000)
 end
 
-local function TypeWord(word)
+local function TypeWord(word, skipCount)
     isTyping = true
     local isFlex = FlexB.Text:find("ON")
     
-    -- Initial hesitation (Longer if Flex)
+    -- Initial hesitation
     local startDelay = GetRandomTime(TYPING_SETTINGS.StartSlowDelay)
     if isFlex then startDelay = startDelay + 0.05 end 
     task.wait(startDelay) 
 
-    for i = 1, #word do
+    -- SMART SKIP: Start typing from skipCount + 1
+    local startIndex = (skipCount or 0) + 1
+
+    for i = startIndex, #word do
         local char = word:sub(i,i):upper()
         local code = Enum.KeyCode[char] or (char == "-" and Enum.KeyCode.Minus)
         
-        -- TYPO LOGIC (Only in Flex Mode)
+        -- TYPO LOGIC (Flex only)
         if isFlex and math.random() < FLEX_MODIFIERS.TypoChance and i < #word and i > 2 then
-            -- Oops! Typed random wrong key
             local wrongKey = Enum.KeyCode[string.char(math.random(65, 90))] 
-            vim:SendKeyEvent(true, wrongKey, false, game)
-            task.wait(0.01)
-            vim:SendKeyEvent(false, wrongKey, false, game)
-            
-            -- Wait (Realization time)
-            task.wait(math.random(15, 30)/100)
-            
-            -- Backspace
-            vim:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game)
-            task.wait(0.01)
-            vim:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game)
-            
-            -- Wait (Recovery time)
-            task.wait(math.random(10, 20)/100)
+            vim:SendKeyEvent(true, wrongKey, false, game); task.wait(0.01)
+            vim:SendKeyEvent(false, wrongKey, false, game); task.wait(math.random(15, 30)/100)
+            vim:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game); task.wait(0.01)
+            vim:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game); task.wait(math.random(10, 20)/100)
         end
 
-        -- Press Correct Key
         if code then
             vim:SendKeyEvent(true, code, false, game)
             task.wait(0.01)
             vim:SendKeyEvent(false, code, false, game)
         end
         
-        -- DYNAMIC DELAY CALCULATION
+        -- DELAYS
         local currentDelay = GetRandomTime(TYPING_SETTINGS.BaseSpeed)
         
         if isFlex then
-            -- 1. Make it generally slower
             currentDelay = currentDelay + FLEX_MODIFIERS.SpeedAdder
-            
-            -- 2. Burst Logic (Speed up sometimes)
-            if math.random() < FLEX_MODIFIERS.BurstChance then
-                currentDelay = currentDelay - FLEX_MODIFIERS.BurstReduction
-            end
-            
-            -- 3. Increased Hesitation
-            if math.random() < (TYPING_SETTINGS.HesitationChance + FLEX_MODIFIERS.HesitationAdd) then
-                currentDelay = currentDelay + GetRandomTime(TYPING_SETTINGS.HesitationDelay)
-            end
+            if math.random() < FLEX_MODIFIERS.BurstChance then currentDelay = currentDelay - FLEX_MODIFIERS.BurstReduction end
+            if math.random() < (TYPING_SETTINGS.HesitationChance + FLEX_MODIFIERS.HesitationAdd) then currentDelay = currentDelay + GetRandomTime(TYPING_SETTINGS.HesitationDelay) end
         else
-            -- Normal Mode Hesitation
-            if math.random() < TYPING_SETTINGS.HesitationChance then
-                currentDelay = currentDelay + GetRandomTime(TYPING_SETTINGS.HesitationDelay)
-            end
+            if math.random() < TYPING_SETTINGS.HesitationChance then currentDelay = currentDelay + GetRandomTime(TYPING_SETTINGS.HesitationDelay) end
         end
 
-        -- Lock In Overrides (Go Fast)
-        if isLockIn then 
-            currentDelay = currentDelay - LOCK_IN_SPEED_BOOST 
-        end
-        
+        if isLockIn then currentDelay = currentDelay - LOCK_IN_SPEED_BOOST end
         task.wait(math.max(0.01, currentDelay))
     end
     
@@ -248,8 +220,11 @@ local function DoSearch()
             
             if #w >= MIN_LETTER_COUNT then
                 local match = false
-                if isFirstMode then if wLow:sub(1, #query) == query then match = true end
-                else if wLow:find(query, 1, true) then match = true end end
+                if isFirstMode then 
+                    if wLow:sub(1, #query) == query then match = true end
+                else 
+                    if wLow:find(query, 1, true) then match = true end 
+                end
                 
                 if match and not CheckHist(w) and not IsBlacklisted(w) then
                     if isShortMode then if #w < bestLen then bestLen = #w; found = w end
@@ -265,7 +240,16 @@ local function DoSearch()
             WordStatus.TextColor3 = Color3.fromRGB(0, 200, 255)
             AddHist(found)
             task.wait(0.1) 
-            TypeWord(found)
+            
+            -- NEW: Calculate Skip Count
+            local skip = 0
+            if isFirstMode then 
+                -- If we are in "First" mode, the input IS the start of the word.
+                -- So we skip the length of the input.
+                skip = #query 
+            end
+            
+            TypeWord(found, skip)
         else
             WordStatus.Text = "No word found!"
             WordStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
@@ -277,25 +261,4 @@ end
 -- 5. BUTTON EVENTS
 --------------------------------------------------------------------------------
 FirstB.MouseButton1Click:Connect(function() local on=FirstB.Text:find("OFF"); FirstB.Text=on and "First: ON" or "First: OFF"; FirstB.BackgroundColor3=on and Color3.fromRGB(230,126,34) or Color3.fromRGB(50,50,50) end)
-ShortB.MouseButton1Click:Connect(function() local on=ShortB.Text:find("OFF"); ShortB.Text=on and "Short: ON" or "Short: OFF"; ShortB.BackgroundColor3=on and Color3.fromRGB(241,196,15) or Color3.fromRGB(50,50,50); if on then FlexB.Text="Flex: OFF"; FlexB.BackgroundColor3=Color3.fromRGB(50,50,50) end end)
-FlexB.MouseButton1Click:Connect(function() local on=FlexB.Text:find("OFF"); FlexB.Text=on and "Flex: ON" or "Flex: OFF"; FlexB.BackgroundColor3=on and Color3.fromRGB(46,204,113) or Color3.fromRGB(50,50,50); if on then ShortB.Text="Short: OFF"; ShortB.BackgroundColor3=Color3.fromRGB(50,50,50) end end)
-LockB.MouseButton1Click:Connect(function() isLockIn=not isLockIn; LockB.Text=isLockIn and "Lock: ON" or "Lock: OFF"; LockB.BackgroundColor3=isLockIn and Color3.fromRGB(52,152,219) or Color3.fromRGB(50,50,50) end)
-
-SaveB.MouseButton1Click:Connect(function()
-    if lastFound == "" then return end
-    SESSION_BLACKLIST[lastFound:lower()] = true
-    table.insert(SAVED_LIST_UI, lastFound)
-    local l = Instance.new("TextLabel"); l.Parent = ListScroll; l.Size = UDim2.new(1,0,0,20); l.BackgroundTransparency = 1; l.TextColor3 = Color3.new(0.8,0.8,0.8); l.TextSize = 10; l.Text = lastFound; l.Font = "Gotham"
-    ListScroll.CanvasSize = UDim2.new(0,0,0,#SAVED_LIST_UI * 20)
-    WordStatus.Text = "Blacklisted: " .. lastFound
-end)
-
-LL_Btn.MouseButton1Click:Connect(function() LL_Enabled=not LL_Enabled; if LL_Enabled and next(LL_Table)==nil then FetchBlacklist(LL_BLACKLIST_URL, LL_Table) end; LL_Btn.BackgroundColor3=LL_Enabled and Color3.fromRGB(211,84,0) or Color3.fromRGB(40,40,40); LL_Btn.Text=LL_Enabled and "LL Blacklist: ON" or "Last Letter Blacklist" end)
-WB_Btn.MouseButton1Click:Connect(function() WB_Enabled=not WB_Enabled; if WB_Enabled and next(WB_Table)==nil then FetchBlacklist(WB_BLACKLIST_URL, WB_Table) end; WB_Btn.BackgroundColor3=WB_Enabled and Color3.fromRGB(192,57,43) or Color3.fromRGB(40,40,40); WB_Btn.Text=WB_Enabled and "WB Blacklist: ON" or "Word Bomb Blacklist" end)
-
-ListB.MouseButton1Click:Connect(function() ListView.Visible = not ListView.Visible end)
-CopyBtn.MouseButton1Click:Connect(function() if setclipboard then setclipboard(table.concat(SAVED_LIST_UI, ", ")); CopyBtn.Text="Copied!" task.wait(1) CopyBtn.Text="Copy All" end end)
-ResetB.MouseButton1Click:Connect(function() GlobalEnv._UPB_History = {}; WordStatus.Text = "History Cleared (Blacklist Kept)" end)
-
-RunBtn.MouseButton1Click:Connect(DoSearch)
-Input.FocusLost:Connect(function(e) if e then DoSearch() end end)
+ShortB.MouseButton1Click:Connect(function() local on=ShortB.Text:find("OFF"); ShortB.Text=on and "Short: ON" or "Short: OFF"; ShortB.BackgroundColor3=on and Color3.fromRGB(241,196,15) or Color3.fromRGB(50,50,50); if on then FlexB.Text="Fl
