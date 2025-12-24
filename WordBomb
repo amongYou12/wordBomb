@@ -18,7 +18,7 @@ local DictionaryURLs = {
     -- Link 2 (Replace this with your 2nd url)
 }
 
-local MIN_WORD_LENGTH = 5 
+local MIN_WORD_LENGTH = 6
 
 -- These ranges are now WIDER to feel more human.
 local TYPING_SETTINGS = {
