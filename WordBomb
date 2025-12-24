@@ -1,18 +1,19 @@
 --[[
-    UNPATCHABOMB [FIXED EDITION v8]
-    - FIXED: Dragging works again.
-    - FIXED: Auto-Type now types the FULL word (no more missing first letters).
-    - INCLUDED: All v7.5 features (Blacklists, Save/Clear, List View).
+    UNPATCHABOMB [COMPLETE EDITION v9]
+    - RESTORED: Lock In Mode (Speed Boost).
+    - RESTORED: Advanced Humanized Typing (Hesitations, Start-Slow).
+    - UI: Bigger, cleaner interface.
+    - FEATURES: Blacklists, Save/Clear, List View, Dragging.
 ]]--
 
 --------------------------------------------------------------------------------
--- 0. CONFIGURATION
+-- 0. CONFIGURATION & SETTINGS
 --------------------------------------------------------------------------------
 local MIN_LETTER_COUNT = 3
 
--- Blacklist URLs (Replace with yours if needed)
-local LL_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/ll_blacklist.lua" -- Example
-local WB_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/wb_blacklist.lua" -- Example
+-- Blacklist URLs
+local LL_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/ll_blacklist.lua"
+local WB_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/wb_blacklist.lua"
 
 local DictionaryURLs = {
     "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt",
@@ -21,6 +22,18 @@ local DictionaryURLs = {
     "https://gist.githubusercontent.com/letterpressfan/4145939/raw/4ca79142f49ce9ac8758cf3146ce14aa89b217cd/in-lp1.1-but-not-csw12.txt"
 }
 
+-- RESTORED SETTINGS
+local TYPING_SETTINGS = {
+    StartSlowDelay = {0.055, 0.095}, 
+    BaseSpeed = {0.055, 0.075}, 
+    HesitationChance = 0.65,
+    HesitationDelay = {0.085, 0.12}, 
+    SubmitDelay = {0.05, 0.1}, 
+    BackspaceSpeed = {0.07, 0.13} 
+}
+
+local LOCK_IN_SPEED_BOOST = 0.035 -- How much faster it gets in Lock In mode
+
 --------------------------------------------------------------------------------
 -- 1. STATE & UTILS
 --------------------------------------------------------------------------------
@@ -28,6 +41,7 @@ local LL_Enabled, WB_Enabled = false, false
 local LL_Table, WB_Table = {}, {}
 local ALL_WORDS, SAVED_LIST = {}, {}
 local isTyping, lastFound = false, ""
+local isLockIn = false -- Lock In State
 
 local GlobalEnv = (getgenv and getgenv()) or _G
 if not GlobalEnv._UPB_History then GlobalEnv._UPB_History = {} end
@@ -38,6 +52,14 @@ local function Sanitize(s) return s:gsub("%s+", ""):gsub("[^a-zA-Z0-9%-]", "") e
 
 local vim = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
+
+-- Helper to get random float
+local function GetRandomTime(tbl, boost)
+    local val = (math.random(tbl[1]*1000, tbl[2]*1000) / 1000)
+    if isLockIn then val = val - LOCK_IN_SPEED_BOOST end
+    if val < 0.005 then val = 0.005 end -- Safety cap
+    return val
+end
 
 --------------------------------------------------------------------------------
 -- 2. CORE LOGIC
@@ -65,21 +87,23 @@ local function IsBlacklisted(w)
 end
 
 --------------------------------------------------------------------------------
--- 3. UI CONSTRUCTION
+-- 3. UI CONSTRUCTION (BIGGER & BETTER)
 --------------------------------------------------------------------------------
 local CoreGui = game:GetService("CoreGui")
 local Parent = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or CoreGui
 if Parent:FindFirstChild("Unpatchabomb") then Parent.Unpatchabomb:Destroy() end
 
 local Screen = Instance.new("ScreenGui"); Screen.Name = "Unpatchabomb"; Screen.Parent = Parent; Screen.ResetOnSpawn = false
-local Main = Instance.new("Frame"); Main.Parent = Screen; Main.BackgroundColor3 = Color3.fromRGB(20,20,20); Main.Size = UDim2.new(0, 330, 0, 280); Main.Position = UDim2.new(0.5, -165, 0.5, -140); Main.BorderSizePixel = 0
+
+-- EXPANDED SIZE
+local Main = Instance.new("Frame"); Main.Parent = Screen; Main.BackgroundColor3 = Color3.fromRGB(20,20,20); Main.Size = UDim2.new(0, 380, 0, 320); Main.Position = UDim2.new(0.5, -190, 0.5, -160); Main.BorderSizePixel = 0
 local Corner = Instance.new("UICorner"); Corner.Parent = Main
 
 local Top = Instance.new("Frame"); Top.Parent = Main; Top.BackgroundColor3 = Color3.fromRGB(30,30,30); Top.Size = UDim2.new(1,0,0,35)
 local TopCorner = Instance.new("UICorner"); TopCorner.Parent = Top
-local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v8 [FIXED]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = "GothamBold"; Title.TextXAlignment = "Left"; Title.TextSize = 14
+local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v9 [COMPLETE]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = "GothamBold"; Title.TextXAlignment = "Left"; Title.TextSize = 14
 
--- DRAGGING LOGIC (RESTORED)
+-- DRAGGING
 local dragging, dragInput, dragStart, startPos
 Top.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -97,12 +121,12 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-local WordStatus = Instance.new("TextLabel"); WordStatus.Parent = Main; WordStatus.Position = UDim2.new(0,0,0.14,0); WordStatus.Size = UDim2.new(1,0,0.08,0); WordStatus.BackgroundTransparency = 1; WordStatus.Text = "Dictionary Loading..."; WordStatus.TextColor3 = Color3.fromRGB(200,200,200); WordStatus.Font = "GothamMedium"; WordStatus.TextSize = 12
+local WordStatus = Instance.new("TextLabel"); WordStatus.Parent = Main; WordStatus.Position = UDim2.new(0,0,0.12,0); WordStatus.Size = UDim2.new(1,0,0.08,0); WordStatus.BackgroundTransparency = 1; WordStatus.Text = "Dictionary Loading..."; WordStatus.TextColor3 = Color3.fromRGB(200,200,200); WordStatus.Font = "GothamMedium"; WordStatus.TextSize = 13
 
-local Input = Instance.new("TextBox"); Input.Parent = Main; Input.Position = UDim2.new(0.05,0,0.24,0); Input.Size = UDim2.new(0.65,0,0.12,0); Input.BackgroundColor3 = Color3.fromRGB(40,40,40); Input.Text = ""; Input.PlaceholderText = "Input letters..."; Input.TextColor3 = Color3.new(1,1,1); Input.Font = "GothamBold"
+local Input = Instance.new("TextBox"); Input.Parent = Main; Input.Position = UDim2.new(0.05,0,0.21,0); Input.Size = UDim2.new(0.65,0,0.11,0); Input.BackgroundColor3 = Color3.fromRGB(40,40,40); Input.Text = ""; Input.PlaceholderText = "Input letters..."; Input.TextColor3 = Color3.new(1,1,1); Input.Font = "GothamBold"
 Instance.new("UICorner").Parent = Input
 
-local RunBtn = Instance.new("TextButton"); RunBtn.Parent = Main; RunBtn.Position = UDim2.new(0.73,0,0.24,0); RunBtn.Size = UDim2.new(0.22,0,0.12,0); RunBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113); RunBtn.Text = "▶"; RunBtn.TextSize = 18; RunBtn.Font = "GothamBold"
+local RunBtn = Instance.new("TextButton"); RunBtn.Parent = Main; RunBtn.Position = UDim2.new(0.73,0,0.21,0); RunBtn.Size = UDim2.new(0.22,0,0.11,0); RunBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113); RunBtn.Text = "▶"; RunBtn.TextSize = 18; RunBtn.Font = "GothamBold"
 Instance.new("UICorner").Parent = RunBtn
 
 local function Btn(text, pos, size, color)
@@ -111,27 +135,33 @@ local function Btn(text, pos, size, color)
     return b
 end
 
--- BUTTON LAYOUT
-local FirstB = Btn("First: OFF", UDim2.new(0.05,0,0.40,0), UDim2.new(0.28,0,0.08,0), Color3.fromRGB(50,50,50))
-local ShortB = Btn("Short: OFF", UDim2.new(0.36,0,0.40,0), UDim2.new(0.28,0,0.08,0), Color3.fromRGB(50,50,50))
-local FlexB  = Btn("Flex: OFF",  UDim2.new(0.67,0,0.40,0), UDim2.new(0.28,0,0.08,0), Color3.fromRGB(50,50,50))
+-- BUTTON LAYOUT (4 Columns for Toggles)
+local FirstB = Btn("First: OFF", UDim2.new(0.05,0,0.35,0), UDim2.new(0.21,0,0.09,0), Color3.fromRGB(50,50,50))
+local ShortB = Btn("Short: OFF", UDim2.new(0.28,0,0.35,0), UDim2.new(0.21,0,0.09,0), Color3.fromRGB(50,50,50))
+local FlexB  = Btn("Flex: OFF",  UDim2.new(0.51,0,0.35,0), UDim2.new(0.21,0,0.09,0), Color3.fromRGB(50,50,50))
+local LockB  = Btn("Lock: OFF",  UDim2.new(0.74,0,0.35,0), UDim2.new(0.21,0,0.09,0), Color3.fromRGB(50,50,50)) -- NEW
 
-local LL_Btn = Btn("Last Letter Blacklist", UDim2.new(0.05,0,0.52,0), UDim2.new(0.44,0,0.10,0), Color3.fromRGB(40,40,40))
-local WB_Btn = Btn("Word Bomb Blacklist",   UDim2.new(0.51,0,0.52,0), UDim2.new(0.44,0,0.10,0), Color3.fromRGB(40,40,40))
+-- Blacklists
+local LL_Btn = Btn("Last Letter Blacklist", UDim2.new(0.05,0,0.48,0), UDim2.new(0.44,0,0.10,0), Color3.fromRGB(40,40,40))
+local WB_Btn = Btn("Word Bomb Blacklist",   UDim2.new(0.51,0,0.48,0), UDim2.new(0.44,0,0.10,0), Color3.fromRGB(40,40,40))
 
-local SaveB  = Btn("Save/Clear Word",       UDim2.new(0.05,0,0.65,0), UDim2.new(0.44,0,0.12,0), Color3.fromRGB(230, 126, 34))
-local ListB  = Btn("View Saved List",       UDim2.new(0.51,0,0.65,0), UDim2.new(0.44,0,0.12,0), Color3.fromRGB(155, 89, 182))
+-- Actions
+local SaveB  = Btn("Save/Clear Word",       UDim2.new(0.05,0,0.61,0), UDim2.new(0.44,0,0.12,0), Color3.fromRGB(230, 126, 34))
+local ListB  = Btn("View Saved List",       UDim2.new(0.51,0,0.61,0), UDim2.new(0.44,0,0.12,0), Color3.fromRGB(155, 89, 182))
 
-local ResetB = Btn("Reset History",         UDim2.new(0.05,0,0.82,0), UDim2.new(0.9,0,0.10,0), Color3.fromRGB(192, 57, 43))
+-- Reset
+local ResetB = Btn("Reset History",         UDim2.new(0.05,0,0.76,0), UDim2.new(0.9,0,0.10,0), Color3.fromRGB(192, 57, 43))
 
-local ListView = Instance.new("Frame"); ListView.Parent = Screen; ListView.Size = UDim2.new(0,200,0,250); ListView.Position = UDim2.new(0.5, 175, 0.5, -125); ListView.BackgroundColor3 = Color3.fromRGB(25,25,25); ListView.Visible = false
+-- LIST VIEW
+local ListView = Instance.new("Frame"); ListView.Parent = Screen; ListView.Size = UDim2.new(0,220,0,280); ListView.Position = UDim2.new(0.5, 200, 0.5, -140); ListView.BackgroundColor3 = Color3.fromRGB(25,25,25); ListView.Visible = false
 Instance.new("UICorner").Parent = ListView
 local ListScroll = Instance.new("ScrollingFrame"); ListScroll.Parent = ListView; ListScroll.Size = UDim2.new(0.9,0,0.7,0); ListScroll.Position = UDim2.new(0.05,0,0.1,0); ListScroll.BackgroundTransparency = 1; ListScroll.CanvasSize = UDim2.new(0,0,0,0)
 Instance.new("UIListLayout").Parent = ListScroll
 local CopyBtn = Btn("Copy All to Clipboard", UDim2.new(0.1,0,0.85,0), UDim2.new(0.8,0,0.1,0), Color3.fromRGB(60,60,60))
+CopyBtn.Parent = ListView -- Fix parent
 
 --------------------------------------------------------------------------------
--- 4. ENGINE (FIXED TYPING)
+-- 4. ENGINE (RESTORED TYPING LOGIC)
 --------------------------------------------------------------------------------
 task.spawn(function()
     local count = 0
@@ -147,24 +177,37 @@ task.spawn(function()
             end
         end
     end
-    WordStatus.Text = "Dictionary: " .. count .. " words"
+    WordStatus.Text = "Loaded " .. count .. " Words"
 end)
 
 local function TypeWord(word)
     isTyping = true
-    -- START FROM 1 (Fixes the incomplete word bug)
+    
+    -- Safety Delay before starting
+    task.wait(GetRandomTime(TYPING_SETTINGS.StartSlowDelay))
+
     for i = 1, #word do
         local char = word:sub(i,i):upper()
         local code = Enum.KeyCode[char] or (char == "-" and Enum.KeyCode.Minus)
+        
         if code then
             vim:SendKeyEvent(true, code, false, game)
             task.wait(0.01)
             vim:SendKeyEvent(false, code, false, game)
         end
-        -- Humanization Speed
-        task.wait(math.random(5, 10)/100)
+        
+        -- Logic: Start slow for first 3 letters, then speed up
+        local delay = (i <= 3) and GetRandomTime(TYPING_SETTINGS.StartSlowDelay) or GetRandomTime(TYPING_SETTINGS.BaseSpeed)
+        
+        -- Hesitation Logic (Random pauses)
+        if math.random() > 0.85 and not isLockIn then -- Hesitate rarely if not locked in
+            delay = delay + GetRandomTime(TYPING_SETTINGS.HesitationDelay)
+        end
+        
+        task.wait(delay)
     end
-    task.wait(0.1)
+    
+    task.wait(GetRandomTime(TYPING_SETTINGS.SubmitDelay))
     vim:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
     task.wait(0.05)
     vim:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
@@ -180,12 +223,8 @@ local function DoSearch()
     task.spawn(function()
         local found = nil
         local yieldCounter = 0
-        
-        -- Logic Checks
-        local isFirst = FirstB.Text:find("ON")
         local isShort = ShortB.Text:find("ON")
-        local isFlex = FlexB.Text:find("ON")
-
+        
         if isShort then
             local minLen = 999
             for _, v in ipairs(ALL_WORDS) do
@@ -202,7 +241,7 @@ local function DoSearch()
                 if #w >= MIN_LETTER_COUNT and w:lower():find(query, 1, true) then
                     if not CheckHist(w) and not IsBlacklisted(w) then
                         found = w
-                        break -- Stop immediately if regular mode
+                        break
                     end
                 end
             end
@@ -210,13 +249,14 @@ local function DoSearch()
         
         if found then
             lastFound = found
-            WordStatus.Text = "Typing: " .. found
+            WordStatus.Text = "Found: " .. found
+            WordStatus.TextColor3 = Color3.fromRGB(0, 200, 255)
             AddHist(found)
-            -- Small delay to ensure input focus isn't on the button
             task.wait(0.1) 
             TypeWord(found)
         else
             WordStatus.Text = "No clean words found!"
+            WordStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
         end
     end)
 end
@@ -236,7 +276,13 @@ FlexB.MouseButton1Click:Connect(function()
     FlexB.BackgroundColor3 = on and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(50,50,50)
     if on then ShortB.Text="Short: OFF"; ShortB.BackgroundColor3=Color3.fromRGB(50,50,50) end
 end)
+LockB.MouseButton1Click:Connect(function()
+    isLockIn = not isLockIn
+    LockB.Text = isLockIn and "Lock: ON" or "Lock: OFF"
+    LockB.BackgroundColor3 = isLockIn and Color3.fromRGB(52, 152, 219) or Color3.fromRGB(50,50,50)
+end)
 
+-- SAVE & BLACKLISTS
 SaveB.MouseButton1Click:Connect(function()
     if isTyping or lastFound == "" then return end
     table.insert(SAVED_LIST, lastFound)
@@ -247,7 +293,7 @@ SaveB.MouseButton1Click:Connect(function()
     task.spawn(function()
         for i = 1, #lastFound + 1 do
             vim:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game); task.wait(0.01)
-            vim:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game); task.wait(math.random(6, 11)/100)
+            vim:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game); task.wait(GetRandomTime(TYPING_SETTINGS.BackspaceSpeed))
         end
         isTyping = false
         WordStatus.Text = "Saved & Cleared"
