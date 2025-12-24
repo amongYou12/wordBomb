@@ -28,7 +28,7 @@ local TYPING_SETTINGS = {
     HesitationDelay = {0.075, 0.095}, 
     SubmitDelay = {0.05, 0.1}, 
     TypoChance = 0.35, 
-    BackspaceSpeed = {0.05, 0.065} 
+    BackspaceSpeed = {0.085, 0.14} 
 }
 local LOCK_IN_SPEED_BOOST = 0.015
 local FLEX_SETTINGS = {
