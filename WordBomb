@@ -1,8 +1,10 @@
 --[[
-    UNPATCHABOMB [ULTIMATE EDITION v4]
-    - BEHAVIOR: Skips the 1st letter (User request).
+    UNPATCHABOMB [ULTIMATE EDITION v5]
+    - NEW: Skips the prefix you typed in the search bar.
+    - BEHAVIOR: 
+      > If search is "TR" and word is "TRUE", it types "UE".
+      > If search is empty, it skips the 1st letter (User request).
     - MODES: First, Flex, Short, Lock In.
-    - LAYOUT: 5-Button Smart Interface.
 ]]--
 
 --------------------------------------------------------------------------------
@@ -13,7 +15,8 @@ local DictionaryURLs = {
     "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt",
     "https://gist.githubusercontent.com/letterpressfan/4145939/raw/4ca79142f49ce9ac8758cf3146ce14aa89b217cd/in-lp1.1-but-not-csw12.txt",
     "https://raw.githubusercontent.com/gangulwar/JKLM-Bomb-Party-BOT/refs/heads/main/dictionary.txt",
-    "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt"-- Link 2 (Replace this with your 2nd url)
+    "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt"
+    -- Link 2 (Replace this with your 2nd url)
 }
 local MIN_WORD_LENGTH = 10 
 
@@ -26,8 +29,6 @@ local TYPING_SETTINGS = {
     TypoChance = 0.35, 
     BackspaceSpeed = {0.05, 0.065} 
 }
-
--- MODIFIERS
 local LOCK_IN_SPEED_BOOST = 0.015
 local FLEX_SETTINGS = {
     SpeedBoost = 0.012,       
@@ -60,7 +61,6 @@ local function LoadRemoteWords()
     ALL_WORDS = {}
     local seenWords = {} 
     local count = 0
-    
     for _, url in ipairs(DictionaryURLs) do
         if url:find("http") then
             local success, content = pcall(function() return game:HttpGet(url) end)
@@ -73,12 +73,9 @@ local function LoadRemoteWords()
                         count = count + 1
                     end
                 end
-            else
-                warn("Unpatchabomb: Failed to load URL: " .. url)
             end
         end
     end
-    seenWords = nil 
     return count
 end
 
@@ -104,16 +101,9 @@ local BoxStroke = Instance.new("UIStroke"); BoxStroke.Parent = LetterBox; BoxStr
 local RerunButton = Instance.new("TextButton"); RerunButton.Name = "Run"; RerunButton.Parent = MainFrame; RerunButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113); RerunButton.Position = UDim2.new(0.73, 0, 0.45, 0); RerunButton.Size = UDim2.new(0.22, 0, 0.25, 0); RerunButton.Font = Enum.Font.GothamBold; RerunButton.Text = "▶"; RerunButton.TextColor3 = Color3.fromRGB(25, 25, 25); RerunButton.TextSize = 18
 local RunCorner = Instance.new("UICorner"); RunCorner.Parent = RerunButton
 
--- BOTTOM BUTTONS ROW (Reset | First | Short | Flex | Lock)
 local function CreateBtn(name, text, pos, color)
     local btn = Instance.new("TextButton"); btn.Name = name; btn.Parent = MainFrame
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    btn.Position = pos
-    btn.Size = UDim2.new(0.18, 0, 0.16, 0)
-    btn.Font = Enum.Font.GothamBold
-    btn.Text = text
-    btn.TextColor3 = color
-    btn.TextSize = 10
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40); btn.Position = pos; btn.Size = UDim2.new(0.18, 0, 0.16, 0); btn.Font = Enum.Font.GothamBold; btn.Text = text; btn.TextColor3 = color; btn.TextSize = 10
     local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = btn
     return btn
 end
@@ -126,20 +116,9 @@ local LockInButton= CreateBtn("Lock", "Lock: OFF", UDim2.new(0.80, 0, 0.76, 0), 
 
 local MinimizeButton = Instance.new("TextButton"); MinimizeButton.Name = "Minimize"; MinimizeButton.Parent = TopBar; MinimizeButton.BackgroundTransparency = 1; MinimizeButton.Position = UDim2.new(1, -32, 0, 0); MinimizeButton.Size = UDim2.new(0, 32, 1, 0); MinimizeButton.Font = Enum.Font.GothamBold; MinimizeButton.Text = "-"; MinimizeButton.TextColor3 = Color3.fromRGB(200, 200, 200); MinimizeButton.TextSize = 20
 
--- Dragging
 local dragging, dragInput, dragStart, startPos
-TopBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true; dragStart = input.Position; startPos = MainFrame.Position
-        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
+TopBar.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; dragStart = input.Position; startPos = MainFrame.Position; input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end) end end)
+UserInputService.InputChanged:Connect(function(input) if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then local delta = input.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
 
 --------------------------------------------------------------------------------
 -- 4. LOGIC ENGINE
@@ -159,22 +138,19 @@ local function GetRandomTime(timeTable)
     local minVal = timeTable[1]; local maxVal = timeTable[2]
     local minInt = math.floor(minVal * 10000); local maxInt = math.floor(maxVal * 10000)
     local val = math.random(minInt, maxInt) / 10000
-    
     if isLockInMode then val = val - LOCK_IN_SPEED_BOOST end
     if isFlexMode then val = val - FLEX_SETTINGS.SpeedBoost end
-    
     if val < 0.005 then val = 0.005 end
     return val
 end
 
-local function IDA_autoType(rawWord)
+local function IDA_autoType(rawWord, inputLength)
     local word = SanitizeWord(rawWord)
     if not word or word == "" or isTyping then return end
     isTyping = true
     
     local activeTypoChance = TYPING_SETTINGS.TypoChance
     local activeHesitationChance = TYPING_SETTINGS.HesitationChance
-    
     if isFlexMode then
         activeTypoChance = activeTypoChance + FLEX_SETTINGS.AddedTypoChance
         activeHesitationChance = activeHesitationChance + FLEX_SETTINGS.AddedHesitation
@@ -189,57 +165,41 @@ local function IDA_autoType(rawWord)
         end)
     end
 
-    -- [MODIFICATION]: Start loop at 2 to skip the first letter
-    for i = 2, #word do
-        if #word > 7 and i == 4 and math.random() < activeTypoChance then
-            task.wait(GetRandomTime(TYPING_SETTINGS.BaseSpeed)) 
-            press(Enum.KeyCode.Q)
-            task.wait(GetRandomTime(TYPING_SETTINGS.BaseSpeed)) 
-            press(Enum.KeyCode.Backspace)
-            task.wait(GetRandomTime(TYPING_SETTINGS.BackspaceSpeed))
-        end
+    -- Skip rule: Skip what user put in bar, OR skip 1st letter if bar is empty.
+    local startAt = math.max(2, inputLength + 1)
 
+    for i = startAt, #word do
+        if #word > 7 and i == (startAt + 3) and math.random() < activeTypoChance then
+            task.wait(GetRandomTime(TYPING_SETTINGS.BaseSpeed)) 
+            press(Enum.KeyCode.Q); task.wait(GetRandomTime(TYPING_SETTINGS.BaseSpeed)) 
+            press(Enum.KeyCode.Backspace); task.wait(GetRandomTime(TYPING_SETTINGS.BackspaceSpeed))
+        end
         local char = word:sub(i, i):upper()
         local code = Enum.KeyCode[char] or (char == " " and Enum.KeyCode.Space)
         if char == "-" then code = Enum.KeyCode.Minus end
         if code then press(code) end
-
-        local delay = (i <= 4) and GetRandomTime(TYPING_SETTINGS.StartSlowDelay) or GetRandomTime(TYPING_SETTINGS.BaseSpeed)
+        local delay = (i <= (startAt + 3)) and GetRandomTime(TYPING_SETTINGS.StartSlowDelay) or GetRandomTime(TYPING_SETTINGS.BaseSpeed)
         if math.random() < activeHesitationChance then delay = delay + GetRandomTime(TYPING_SETTINGS.HesitationDelay) end
         task.wait(delay)
     end
 
     task.wait(math.max(0.1, GetRandomTime(TYPING_SETTINGS.SubmitDelay)))
     vim:SendKeyEvent(true, Enum.KeyCode.Return, false, game); task.wait(0.1); vim:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-    
     isTyping = false
-    WordText.Text = "Waiting..."
-    WordText.TextColor3 = Color3.fromRGB(150, 150, 150)
+    WordText.Text = "Waiting..."; WordText.TextColor3 = Color3.fromRGB(150, 150, 150)
 end
 
 local function IDA_PerformSearch()
     if isTyping then return end
     local input = SanitizeWord(LetterBox.Text):lower()
-    if input == "" then return end
+    if input == "" and isFirstMode then return end
     
-    -- Status Text
-    local statusParts = {}
-    if isFirstMode then table.insert(statusParts, "First") end
-    if isFlexMode then table.insert(statusParts, "Flex") end
-    if isShortMode then table.insert(statusParts, "Short") end
-    if #statusParts == 0 then table.insert(statusParts, "Search") end
-    
-    WordText.Text = table.concat(statusParts, " + ") .. "..."
-    WordText.TextColor3 = Color3.fromRGB(255, 255, 0)
+    WordText.Text = "Searching..."; WordText.TextColor3 = Color3.fromRGB(255, 255, 0)
     
     local found = nil
-    
     local function MatchesCriteria(w)
-        if isFirstMode then
-            return w:lower():sub(1, #input) == input
-        else
-            return w:lower():find(input, 1, true)
-        end
+        if isFirstMode then return w:lower():sub(1, #input) == input
+        else return w:lower():find(input, 1, true) end
     end
 
     if isFlexMode then
@@ -247,49 +207,34 @@ local function IDA_PerformSearch()
         for _, v in ipairs(ALL_WORDS) do
             if MatchesCriteria(v) then
                 local cleanV = SanitizeWord(v)
-                if not CheckHistory(cleanV) then
-                    if #cleanV > #bestWord then bestWord = cleanV end
-                end
+                if not CheckHistory(cleanV) then if #cleanV > #bestWord then bestWord = cleanV end end
             end
         end
         if bestWord ~= "" then found = bestWord end
-
     elseif isShortMode then
-        local bestWord = nil
-        local minLen = 999
+        local bestWord = nil; local minLen = 999
         for _, v in ipairs(ALL_WORDS) do
             if MatchesCriteria(v) then
                 local cleanV = SanitizeWord(v)
-                if not CheckHistory(cleanV) then
-                    if #cleanV < minLen then
-                        bestWord = cleanV
-                        minLen = #cleanV
-                    end
-                end
+                if not CheckHistory(cleanV) then if #cleanV < minLen then bestWord = cleanV; minLen = #cleanV end end
             end
         end
         if bestWord then found = bestWord end
-
     else
         for _, v in ipairs(ALL_WORDS) do
             if MatchesCriteria(v) then
                 local cleanV = SanitizeWord(v)
-                if not CheckHistory(cleanV) then
-                    found = cleanV
-                    break
-                end
+                if not CheckHistory(cleanV) then found = cleanV; break end
             end
         end
     end
 
     if found then
-        WordText.Text = "Typing: " .. found
-        WordText.TextColor3 = isLockInMode and Color3.fromRGB(255, 0, 255) or Color3.fromRGB(0, 200, 255)
+        WordText.Text = "Typing: " .. found; WordText.TextColor3 = Color3.fromRGB(0, 200, 255)
         AddToHistory(found)
-        IDA_autoType(found)
+        IDA_autoType(found, #input)
     else
-        WordText.Text = "No Word Found"
-        WordText.TextColor3 = Color3.fromRGB(255, 100, 100)
+        WordText.Text = "No Word Found"; WordText.TextColor3 = Color3.fromRGB(255, 100, 100)
     end
 end
 
@@ -298,38 +243,15 @@ end
 --------------------------------------------------------------------------------
 LetterBox.FocusLost:Connect(function(e) if e then IDA_PerformSearch() end end)
 RerunButton.MouseButton1Click:Connect(IDA_PerformSearch)
-
-ResetButton.MouseButton1Click:Connect(function() 
-    if isTyping then return end
-    ClearHistory() 
-    WordText.Text = "History Cleared"
-    WordText.TextColor3 = Color3.fromRGB(255, 150, 150)
-    task.wait(1)
-    WordText.TextColor3 = Color3.fromRGB(150, 150, 150)
-    WordText.Text = "Loaded " .. #ALL_WORDS .. " Words"
-end)
-
+ResetButton.MouseButton1Click:Connect(function() if isTyping then return end ClearHistory(); WordText.Text = "History Cleared"; task.wait(1); WordText.Text = "Loaded " .. #ALL_WORDS .. " Words" end)
 local function UpdateVisuals()
-    FirstButton.Text = isFirstMode and "First: ON" or "First: OFF"
-    FirstButton.TextColor3 = isFirstMode and Color3.fromRGB(230, 126, 34) or Color3.fromRGB(150, 150, 150)
-    
-    FlexButton.Text = isFlexMode and "Flex: ON" or "Flex: OFF"
-    FlexButton.TextColor3 = isFlexMode and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(150, 150, 150)
-
-    ShortButton.Text = isShortMode and "Short: ON" or "Short: OFF"
-    ShortButton.TextColor3 = isShortMode and Color3.fromRGB(241, 196, 15) or Color3.fromRGB(150, 150, 150)
-
-    LockInButton.Text = isLockInMode and "Lock: ON" or "Lock: OFF"
-    LockInButton.TextColor3 = isLockInMode and Color3.fromRGB(52, 152, 219) or Color3.fromRGB(150, 150, 150)
+    FirstButton.Text = isFirstMode and "First: ON" or "First: OFF"; FirstButton.TextColor3 = isFirstMode and Color3.fromRGB(230, 126, 34) or Color3.fromRGB(150, 150, 150)
+    FlexButton.Text = isFlexMode and "Flex: ON" or "Flex: OFF"; FlexButton.TextColor3 = isFlexMode and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(150, 150, 150)
+    ShortButton.Text = isShortMode and "Short: ON" or "Short: OFF"; ShortButton.TextColor3 = isShortMode and Color3.fromRGB(241, 196, 15) or Color3.fromRGB(150, 150, 150)
+    LockInButton.Text = isLockInMode and "Lock: ON" or "Lock: OFF"; LockInButton.TextColor3 = isLockInMode and Color3.fromRGB(52, 152, 219) or Color3.fromRGB(150, 150, 150)
 end
-
 FirstButton.MouseButton1Click:Connect(function() isFirstMode = not isFirstMode; UpdateVisuals() end)
 FlexButton.MouseButton1Click:Connect(function() isFlexMode = not isFlexMode; if isFlexMode then isShortMode = false end; UpdateVisuals() end)
 ShortButton.MouseButton1Click:Connect(function() isShortMode = not isShortMode; if isShortMode then isFlexMode = false end; UpdateVisuals() end)
 LockInButton.MouseButton1Click:Connect(function() isLockInMode = not isLockInMode; UpdateVisuals() end)
-
-MinimizeButton.MouseButton1Click:Connect(function()
-    local isVis = MainFrame.Visible
-    MainFrame.Visible = not isVis
-    MinimizeButton.Text = isVis and "+" or "-"
-end)
+MinimizeButton.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible; MinimizeButton.Text = MainFrame.Visible and "-" or "+" end)
