@@ -1,18 +1,18 @@
 --[[
-    UNPATCHABOMB [ULTIMATE EDITION v7.5 - THE ALL-IN-ONE REWRITE]
-    - Blacklists: Last Letter & Word Bomb (via Loadstring)
-    - Features: Save/Clear (Backspace Spam), List UI, Copy All
-    - Logic: Minimum Letter Enforcement, 600k+ Word Optimization
+    UNPATCHABOMB [FIXED EDITION v8]
+    - FIXED: Dragging works again.
+    - FIXED: Auto-Type now types the FULL word (no more missing first letters).
+    - INCLUDED: All v7.5 features (Blacklists, Save/Clear, List View).
 ]]--
 
 --------------------------------------------------------------------------------
 -- 0. CONFIGURATION
 --------------------------------------------------------------------------------
-local MIN_LETTER_COUNT = 5 -- Change this as needed
+local MIN_LETTER_COUNT = 3
 
--- Your Loadstring URLs here:
-local LL_BLACKLIST_URL = "https://your-link-here.com/LastLetterBlacklist.lua"
-local WB_BLACKLIST_URL = "https://your-link-here.com/WordBombBlacklist.lua"
+-- Blacklist URLs (Replace with yours if needed)
+local LL_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/ll_blacklist.lua" -- Example
+local WB_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/wb_blacklist.lua" -- Example
 
 local DictionaryURLs = {
     "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt",
@@ -37,14 +37,15 @@ local function AddHist(w) GlobalEnv._UPB_History[w:lower()] = true end
 local function Sanitize(s) return s:gsub("%s+", ""):gsub("[^a-zA-Z0-9%-]", "") end
 
 local vim = game:GetService("VirtualInputManager")
+local UserInputService = game:GetService("UserInputService")
 
 --------------------------------------------------------------------------------
--- 2. CORE LOGIC (SEARCH & BLACKLIST)
+-- 2. CORE LOGIC
 --------------------------------------------------------------------------------
 local function FetchBlacklist(url, target)
     local s, content = pcall(function() return game:HttpGet(url) end)
     if s then
-        local func, err = loadstring(content)
+        local func = loadstring(content)
         if func then
             local data = func()
             if type(data) == "table" then
@@ -70,12 +71,31 @@ local CoreGui = game:GetService("CoreGui")
 local Parent = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or CoreGui
 if Parent:FindFirstChild("Unpatchabomb") then Parent.Unpatchabomb:Destroy() end
 
-local Screen = Instance.new("ScreenGui"); Screen.Name = "Unpatchabomb"; Screen.Parent = Parent
+local Screen = Instance.new("ScreenGui"); Screen.Name = "Unpatchabomb"; Screen.Parent = Parent; Screen.ResetOnSpawn = false
 local Main = Instance.new("Frame"); Main.Parent = Screen; Main.BackgroundColor3 = Color3.fromRGB(20,20,20); Main.Size = UDim2.new(0, 330, 0, 280); Main.Position = UDim2.new(0.5, -165, 0.5, -140); Main.BorderSizePixel = 0
 local Corner = Instance.new("UICorner"); Corner.Parent = Main
 
 local Top = Instance.new("Frame"); Top.Parent = Main; Top.BackgroundColor3 = Color3.fromRGB(30,30,30); Top.Size = UDim2.new(1,0,0,35)
-local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = " UNPATCHABOMB v7.5"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = "GothamBold"; Title.TextXAlignment = "Left"; Title.TextSize = 14
+local TopCorner = Instance.new("UICorner"); TopCorner.Parent = Top
+local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v8 [FIXED]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = "GothamBold"; Title.TextXAlignment = "Left"; Title.TextSize = 14
+
+-- DRAGGING LOGIC (RESTORED)
+local dragging, dragInput, dragStart, startPos
+Top.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true; dragStart = input.Position; startPos = Main.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+    end
+end)
+Top.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
 
 local WordStatus = Instance.new("TextLabel"); WordStatus.Parent = Main; WordStatus.Position = UDim2.new(0,0,0.14,0); WordStatus.Size = UDim2.new(1,0,0.08,0); WordStatus.BackgroundTransparency = 1; WordStatus.Text = "Dictionary Loading..."; WordStatus.TextColor3 = Color3.fromRGB(200,200,200); WordStatus.Font = "GothamMedium"; WordStatus.TextSize = 12
 
@@ -85,7 +105,6 @@ Instance.new("UICorner").Parent = Input
 local RunBtn = Instance.new("TextButton"); RunBtn.Parent = Main; RunBtn.Position = UDim2.new(0.73,0,0.24,0); RunBtn.Size = UDim2.new(0.22,0,0.12,0); RunBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113); RunBtn.Text = "▶"; RunBtn.TextSize = 18; RunBtn.Font = "GothamBold"
 Instance.new("UICorner").Parent = RunBtn
 
--- Helper to create buttons
 local function Btn(text, pos, size, color)
     local b = Instance.new("TextButton"); b.Parent = Main; b.Position = pos; b.Size = size; b.BackgroundColor3 = color; b.Text = text; b.TextColor3 = Color3.new(1,1,1); b.Font = "GothamBold"; b.TextSize = 10
     Instance.new("UICorner").Parent = b
@@ -105,9 +124,6 @@ local ListB  = Btn("View Saved List",       UDim2.new(0.51,0,0.65,0), UDim2.new(
 
 local ResetB = Btn("Reset History",         UDim2.new(0.05,0,0.82,0), UDim2.new(0.9,0,0.10,0), Color3.fromRGB(192, 57, 43))
 
---------------------------------------------------------------------------------
--- LIST VIEW UI
---------------------------------------------------------------------------------
 local ListView = Instance.new("Frame"); ListView.Parent = Screen; ListView.Size = UDim2.new(0,200,0,250); ListView.Position = UDim2.new(0.5, 175, 0.5, -125); ListView.BackgroundColor3 = Color3.fromRGB(25,25,25); ListView.Visible = false
 Instance.new("UICorner").Parent = ListView
 local ListScroll = Instance.new("ScrollingFrame"); ListScroll.Parent = ListView; ListScroll.Size = UDim2.new(0.9,0,0.7,0); ListScroll.Position = UDim2.new(0.05,0,0.1,0); ListScroll.BackgroundTransparency = 1; ListScroll.CanvasSize = UDim2.new(0,0,0,0)
@@ -115,10 +131,8 @@ Instance.new("UIListLayout").Parent = ListScroll
 local CopyBtn = Btn("Copy All to Clipboard", UDim2.new(0.1,0,0.85,0), UDim2.new(0.8,0,0.1,0), Color3.fromRGB(60,60,60))
 
 --------------------------------------------------------------------------------
--- 4. THE ENGINE
+-- 4. ENGINE (FIXED TYPING)
 --------------------------------------------------------------------------------
-
--- Dictionary Loader (Yields to prevent crash)
 task.spawn(function()
     local count = 0
     for _, url in ipairs(DictionaryURLs) do
@@ -136,11 +150,10 @@ task.spawn(function()
     WordStatus.Text = "Dictionary: " .. count .. " words"
 end)
 
--- HUMANIZED TYPING
-local function TypeWord(word, startLen)
+local function TypeWord(word)
     isTyping = true
-    task.wait(math.random(10, 50)/100)
-    for i = startLen + 1, #word do
+    -- START FROM 1 (Fixes the incomplete word bug)
+    for i = 1, #word do
         local char = word:sub(i,i):upper()
         local code = Enum.KeyCode[char] or (char == "-" and Enum.KeyCode.Minus)
         if code then
@@ -148,7 +161,8 @@ local function TypeWord(word, startLen)
             task.wait(0.01)
             vim:SendKeyEvent(false, code, false, game)
         end
-        task.wait(math.random(5, 12)/100)
+        -- Humanization Speed
+        task.wait(math.random(5, 10)/100)
     end
     task.wait(0.1)
     vim:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
@@ -157,7 +171,6 @@ local function TypeWord(word, startLen)
     isTyping = false
 end
 
--- THE SEARCH ENGINE
 local function DoSearch()
     if isTyping then return end
     local query = Sanitize(Input.Text):lower()
@@ -168,15 +181,29 @@ local function DoSearch()
         local found = nil
         local yieldCounter = 0
         
-        for _, word in ipairs(ALL_WORDS) do
-            yieldCounter = yieldCounter + 1
-            if yieldCounter % 5000 == 0 then task.wait() end
-            
-            local w = Sanitize(word)
-            if #w >= MIN_LETTER_COUNT and w:lower():find(query, 1, true) then
-                if not CheckHist(w) and not IsBlacklisted(w) then
-                    found = w
-                    break
+        -- Logic Checks
+        local isFirst = FirstB.Text:find("ON")
+        local isShort = ShortB.Text:find("ON")
+        local isFlex = FlexB.Text:find("ON")
+
+        if isShort then
+            local minLen = 999
+            for _, v in ipairs(ALL_WORDS) do
+                yieldCounter = yieldCounter + 1; if yieldCounter%5000==0 then task.wait() end
+                local w = Sanitize(v)
+                if #w >= MIN_LETTER_COUNT and w:lower():find(query, 1, true) and not CheckHist(w) and not IsBlacklisted(w) then
+                   if #w < minLen then minLen = #w; found = w end
+                end
+            end
+        else
+            for _, v in ipairs(ALL_WORDS) do
+                yieldCounter = yieldCounter + 1; if yieldCounter%5000==0 then task.wait() end
+                local w = Sanitize(v)
+                if #w >= MIN_LETTER_COUNT and w:lower():find(query, 1, true) then
+                    if not CheckHist(w) and not IsBlacklisted(w) then
+                        found = w
+                        break -- Stop immediately if regular mode
+                    end
                 end
             end
         end
@@ -185,60 +212,63 @@ local function DoSearch()
             lastFound = found
             WordStatus.Text = "Typing: " .. found
             AddHist(found)
-            TypeWord(found, #query)
+            -- Small delay to ensure input focus isn't on the button
+            task.wait(0.1) 
+            TypeWord(found)
         else
             WordStatus.Text = "No clean words found!"
         end
     end)
 end
 
--- BACKSPACE SPAMMER
+-- TOGGLES
+FirstB.MouseButton1Click:Connect(function() 
+    local on = FirstB.Text:find("OFF"); FirstB.Text = on and "First: ON" or "First: OFF"
+    FirstB.BackgroundColor3 = on and Color3.fromRGB(230, 126, 34) or Color3.fromRGB(50,50,50)
+end)
+ShortB.MouseButton1Click:Connect(function() 
+    local on = ShortB.Text:find("OFF"); ShortB.Text = on and "Short: ON" or "Short: OFF"
+    ShortB.BackgroundColor3 = on and Color3.fromRGB(241, 196, 15) or Color3.fromRGB(50,50,50)
+    if on then FlexB.Text="Flex: OFF"; FlexB.BackgroundColor3=Color3.fromRGB(50,50,50) end
+end)
+FlexB.MouseButton1Click:Connect(function() 
+    local on = FlexB.Text:find("OFF"); FlexB.Text = on and "Flex: ON" or "Flex: OFF"
+    FlexB.BackgroundColor3 = on and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(50,50,50)
+    if on then ShortB.Text="Short: OFF"; ShortB.BackgroundColor3=Color3.fromRGB(50,50,50) end
+end)
+
 SaveB.MouseButton1Click:Connect(function()
     if isTyping or lastFound == "" then return end
     table.insert(SAVED_LIST, lastFound)
-    
-    -- Update List UI
     local l = Instance.new("TextLabel"); l.Parent = ListScroll; l.Size = UDim2.new(1,0,0,20); l.BackgroundTransparency = 1; l.TextColor3 = Color3.new(0.8,0.8,0.8); l.TextSize = 10; l.Text = lastFound; l.Font = "Gotham"
     ListScroll.CanvasSize = UDim2.new(0,0,0,#SAVED_LIST * 20)
     
     isTyping = true
     task.spawn(function()
         for i = 1, #lastFound + 1 do
-            vim:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game)
-            task.wait(0.01)
-            vim:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game)
-            task.wait(math.random(6, 11)/100)
+            vim:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game); task.wait(0.01)
+            vim:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game); task.wait(math.random(6, 11)/100)
         end
         isTyping = false
         WordStatus.Text = "Saved & Cleared"
     end)
 end)
 
---------------------------------------------------------------------------------
--- 5. BUTTON CONNECTIONS
---------------------------------------------------------------------------------
 LL_Btn.MouseButton1Click:Connect(function()
     LL_Enabled = not LL_Enabled
-    if LL_Enabled and next(LL_Table) == nil then
-        WordStatus.Text = "Downloading LL Blacklist..."
-        FetchBlacklist(LL_BLACKLIST_URL, LL_Table)
-    end
+    if LL_Enabled and next(LL_Table) == nil then WordStatus.Text = "Downloading LL Blacklist..."; FetchBlacklist(LL_BLACKLIST_URL, LL_Table) end
     LL_Btn.BackgroundColor3 = LL_Enabled and Color3.fromRGB(211, 84, 0) or Color3.fromRGB(40,40,40)
     LL_Btn.Text = LL_Enabled and "LL Blacklist: ON" or "Last Letter Blacklist"
 end)
-
 WB_Btn.MouseButton1Click:Connect(function()
     WB_Enabled = not WB_Enabled
-    if WB_Enabled and next(WB_Table) == nil then
-        WordStatus.Text = "Downloading WB Blacklist..."
-        FetchBlacklist(WORD_BOMB_BLACKLIST_URL, WB_Table)
-    end
+    if WB_Enabled and next(WB_Table) == nil then WordStatus.Text = "Downloading WB Blacklist..."; FetchBlacklist(WB_BLACKLIST_URL, WB_Table) end
     WB_Btn.BackgroundColor3 = WB_Enabled and Color3.fromRGB(192, 57, 43) or Color3.fromRGB(40,40,40)
     WB_Btn.Text = WB_Enabled and "WB Blacklist: ON" or "Word Bomb Blacklist"
 end)
 
 ListB.MouseButton1Click:Connect(function() ListView.Visible = not ListView.Visible end)
-CopyBtn.MouseButton1Click:Connect(function() setclipboard(table.concat(SAVED_LIST, ", ")); CopyBtn.Text = "Copied!" task.wait(1) CopyBtn.Text = "Copy All" end)
-ResetB.MouseButton1Click:Connect(function() GlobalEnv._UPB_History = {} WordStatus.Text = "History Cleared" end)
+CopyBtn.MouseButton1Click:Connect(function() if setclipboard then setclipboard(table.concat(SAVED_LIST, ", ")); CopyBtn.Text="Copied!" task.wait(1) CopyBtn.Text="Copy All" end end)
+ResetB.MouseButton1Click:Connect(function() GlobalEnv._UPB_History = {}; WordStatus.Text = "History Cleared" end)
 RunBtn.MouseButton1Click:Connect(DoSearch)
 Input.FocusLost:Connect(function(e) if e then DoSearch() end end)
