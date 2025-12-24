@@ -1,13 +1,13 @@
 --[[
-    UNPATCHABOMB [COMPLETE EDITION v9]
-    - RESTORED: Lock In Mode (Speed Boost).
-    - RESTORED: Advanced Humanized Typing (Hesitations, Start-Slow).
-    - UI: Bigger, cleaner interface.
-    - FEATURES: Blacklists, Save/Clear, List View, Dragging.
+    UNPATCHABOMB [FINAL FIXED EDITION v10]
+    - FIXED: "First" mode now correctly forces "Starts With" logic.
+    - FIXED: "Flex" mode now scans for the Longest word.
+    - FIXED: "Short" mode now scans for the Shortest word.
+    - UI: Resized & Optimized.
 ]]--
 
 --------------------------------------------------------------------------------
--- 0. CONFIGURATION & SETTINGS
+-- 0. CONFIGURATION
 --------------------------------------------------------------------------------
 local MIN_LETTER_COUNT = 3
 
@@ -22,7 +22,7 @@ local DictionaryURLs = {
     "https://gist.githubusercontent.com/letterpressfan/4145939/raw/4ca79142f49ce9ac8758cf3146ce14aa89b217cd/in-lp1.1-but-not-csw12.txt"
 }
 
--- RESTORED SETTINGS
+-- Typing Settings
 local TYPING_SETTINGS = {
     StartSlowDelay = {0.055, 0.095}, 
     BaseSpeed = {0.055, 0.075}, 
@@ -31,17 +31,15 @@ local TYPING_SETTINGS = {
     SubmitDelay = {0.05, 0.1}, 
     BackspaceSpeed = {0.07, 0.13} 
 }
-
-local LOCK_IN_SPEED_BOOST = 0.035 -- How much faster it gets in Lock In mode
+local LOCK_IN_SPEED_BOOST = 0.035 
 
 --------------------------------------------------------------------------------
--- 1. STATE & UTILS
+-- 1. UTILS & SETUP
 --------------------------------------------------------------------------------
 local LL_Enabled, WB_Enabled = false, false
 local LL_Table, WB_Table = {}, {}
 local ALL_WORDS, SAVED_LIST = {}, {}
-local isTyping, lastFound = false, ""
-local isLockIn = false -- Lock In State
+local isTyping, lastFound, isLockIn = false, "", false
 
 local GlobalEnv = (getgenv and getgenv()) or _G
 if not GlobalEnv._UPB_History then GlobalEnv._UPB_History = {} end
@@ -53,16 +51,14 @@ local function Sanitize(s) return s:gsub("%s+", ""):gsub("[^a-zA-Z0-9%-]", "") e
 local vim = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
 
--- Helper to get random float
-local function GetRandomTime(tbl, boost)
+local function GetRandomTime(tbl)
     local val = (math.random(tbl[1]*1000, tbl[2]*1000) / 1000)
     if isLockIn then val = val - LOCK_IN_SPEED_BOOST end
-    if val < 0.005 then val = 0.005 end -- Safety cap
-    return val
+    return math.max(0.005, val)
 end
 
 --------------------------------------------------------------------------------
--- 2. CORE LOGIC
+-- 2. CORE LOGIC (SEARCH & BLACKLIST)
 --------------------------------------------------------------------------------
 local function FetchBlacklist(url, target)
     local s, content = pcall(function() return game:HttpGet(url) end)
@@ -87,7 +83,7 @@ local function IsBlacklisted(w)
 end
 
 --------------------------------------------------------------------------------
--- 3. UI CONSTRUCTION (BIGGER & BETTER)
+-- 3. UI CONSTRUCTION
 --------------------------------------------------------------------------------
 local CoreGui = game:GetService("CoreGui")
 local Parent = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or CoreGui
@@ -95,13 +91,12 @@ if Parent:FindFirstChild("Unpatchabomb") then Parent.Unpatchabomb:Destroy() end
 
 local Screen = Instance.new("ScreenGui"); Screen.Name = "Unpatchabomb"; Screen.Parent = Parent; Screen.ResetOnSpawn = false
 
--- EXPANDED SIZE
 local Main = Instance.new("Frame"); Main.Parent = Screen; Main.BackgroundColor3 = Color3.fromRGB(20,20,20); Main.Size = UDim2.new(0, 380, 0, 320); Main.Position = UDim2.new(0.5, -190, 0.5, -160); Main.BorderSizePixel = 0
 local Corner = Instance.new("UICorner"); Corner.Parent = Main
 
 local Top = Instance.new("Frame"); Top.Parent = Main; Top.BackgroundColor3 = Color3.fromRGB(30,30,30); Top.Size = UDim2.new(1,0,0,35)
 local TopCorner = Instance.new("UICorner"); TopCorner.Parent = Top
-local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v9 [COMPLETE]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = "GothamBold"; Title.TextXAlignment = "Left"; Title.TextSize = 14
+local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v10 [FIXED]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = "GothamBold"; Title.TextXAlignment = "Left"; Title.TextSize = 14
 
 -- DRAGGING
 local dragging, dragInput, dragStart, startPos
@@ -135,33 +130,28 @@ local function Btn(text, pos, size, color)
     return b
 end
 
--- BUTTON LAYOUT (4 Columns for Toggles)
+-- BUTTON LAYOUT
 local FirstB = Btn("First: OFF", UDim2.new(0.05,0,0.35,0), UDim2.new(0.21,0,0.09,0), Color3.fromRGB(50,50,50))
 local ShortB = Btn("Short: OFF", UDim2.new(0.28,0,0.35,0), UDim2.new(0.21,0,0.09,0), Color3.fromRGB(50,50,50))
 local FlexB  = Btn("Flex: OFF",  UDim2.new(0.51,0,0.35,0), UDim2.new(0.21,0,0.09,0), Color3.fromRGB(50,50,50))
-local LockB  = Btn("Lock: OFF",  UDim2.new(0.74,0,0.35,0), UDim2.new(0.21,0,0.09,0), Color3.fromRGB(50,50,50)) -- NEW
+local LockB  = Btn("Lock: OFF",  UDim2.new(0.74,0,0.35,0), UDim2.new(0.21,0,0.09,0), Color3.fromRGB(50,50,50))
 
--- Blacklists
 local LL_Btn = Btn("Last Letter Blacklist", UDim2.new(0.05,0,0.48,0), UDim2.new(0.44,0,0.10,0), Color3.fromRGB(40,40,40))
 local WB_Btn = Btn("Word Bomb Blacklist",   UDim2.new(0.51,0,0.48,0), UDim2.new(0.44,0,0.10,0), Color3.fromRGB(40,40,40))
 
--- Actions
 local SaveB  = Btn("Save/Clear Word",       UDim2.new(0.05,0,0.61,0), UDim2.new(0.44,0,0.12,0), Color3.fromRGB(230, 126, 34))
 local ListB  = Btn("View Saved List",       UDim2.new(0.51,0,0.61,0), UDim2.new(0.44,0,0.12,0), Color3.fromRGB(155, 89, 182))
-
--- Reset
 local ResetB = Btn("Reset History",         UDim2.new(0.05,0,0.76,0), UDim2.new(0.9,0,0.10,0), Color3.fromRGB(192, 57, 43))
 
--- LIST VIEW
 local ListView = Instance.new("Frame"); ListView.Parent = Screen; ListView.Size = UDim2.new(0,220,0,280); ListView.Position = UDim2.new(0.5, 200, 0.5, -140); ListView.BackgroundColor3 = Color3.fromRGB(25,25,25); ListView.Visible = false
 Instance.new("UICorner").Parent = ListView
 local ListScroll = Instance.new("ScrollingFrame"); ListScroll.Parent = ListView; ListScroll.Size = UDim2.new(0.9,0,0.7,0); ListScroll.Position = UDim2.new(0.05,0,0.1,0); ListScroll.BackgroundTransparency = 1; ListScroll.CanvasSize = UDim2.new(0,0,0,0)
 Instance.new("UIListLayout").Parent = ListScroll
 local CopyBtn = Btn("Copy All to Clipboard", UDim2.new(0.1,0,0.85,0), UDim2.new(0.8,0,0.1,0), Color3.fromRGB(60,60,60))
-CopyBtn.Parent = ListView -- Fix parent
+CopyBtn.Parent = ListView
 
 --------------------------------------------------------------------------------
--- 4. ENGINE (RESTORED TYPING LOGIC)
+-- 4. ENGINE (FIXED SEARCH LOGIC)
 --------------------------------------------------------------------------------
 task.spawn(function()
     local count = 0
@@ -182,9 +172,7 @@ end)
 
 local function TypeWord(word)
     isTyping = true
-    
-    -- Safety Delay before starting
-    task.wait(GetRandomTime(TYPING_SETTINGS.StartSlowDelay))
+    task.wait(GetRandomTime(TYPING_SETTINGS.StartSlowDelay)) -- Initial hesitation
 
     for i = 1, #word do
         local char = word:sub(i,i):upper()
@@ -196,13 +184,9 @@ local function TypeWord(word)
             vim:SendKeyEvent(false, code, false, game)
         end
         
-        -- Logic: Start slow for first 3 letters, then speed up
-        local delay = (i <= 3) and GetRandomTime(TYPING_SETTINGS.StartSlowDelay) or GetRandomTime(TYPING_SETTINGS.BaseSpeed)
-        
-        -- Hesitation Logic (Random pauses)
-        if math.random() > 0.85 and not isLockIn then -- Hesitate rarely if not locked in
-            delay = delay + GetRandomTime(TYPING_SETTINGS.HesitationDelay)
-        end
+        local delay = GetRandomTime(TYPING_SETTINGS.BaseSpeed)
+        if i <= 3 then delay = GetRandomTime(TYPING_SETTINGS.StartSlowDelay) end
+        if math.random() > 0.85 and not isLockIn then delay = delay + GetRandomTime(TYPING_SETTINGS.HesitationDelay) end
         
         task.wait(delay)
     end
@@ -214,32 +198,60 @@ local function TypeWord(word)
     isTyping = false
 end
 
+--[[ REWRITTEN SEARCH ENGINE ]]--
 local function DoSearch()
     if isTyping then return end
     local query = Sanitize(Input.Text):lower()
     if query == "" then return end
     
     WordStatus.Text = "Searching..."
+    
+    -- Get Modes
+    local isFirstMode = FirstB.Text:find("ON") -- Starts With
+    local isShortMode = ShortB.Text:find("ON") -- Shortest
+    local isFlexMode  = FlexB.Text:find("ON")  -- Longest (Flex)
+    
     task.spawn(function()
         local found = nil
         local yieldCounter = 0
-        local isShort = ShortB.Text:find("ON")
+        local bestLen = isShortMode and 999 or 0 -- Initialize logic vars
         
-        if isShort then
-            local minLen = 999
-            for _, v in ipairs(ALL_WORDS) do
-                yieldCounter = yieldCounter + 1; if yieldCounter%5000==0 then task.wait() end
-                local w = Sanitize(v)
-                if #w >= MIN_LETTER_COUNT and w:lower():find(query, 1, true) and not CheckHist(w) and not IsBlacklisted(w) then
-                   if #w < minLen then minLen = #w; found = w end
+        for _, v in ipairs(ALL_WORDS) do
+            yieldCounter = yieldCounter + 1
+            if yieldCounter % 4000 == 0 then task.wait() end -- Anti-freeze
+            
+            local w = Sanitize(v)
+            local wLow = w:lower()
+            
+            -- 1. LENGTH CHECK
+            if #w >= MIN_LETTER_COUNT then
+                
+                -- 2. MATCHING LOGIC (FIRST vs NORMAL)
+                local match = false
+                if isFirstMode then
+                    -- "First" means word MUST start with input (for Last Letter)
+                    if wLow:sub(1, #query) == query then match = true end
+                else
+                    -- Normal means word just CONTAINS input
+                    if wLow:find(query, 1, true) then match = true end
                 end
-            end
-        else
-            for _, v in ipairs(ALL_WORDS) do
-                yieldCounter = yieldCounter + 1; if yieldCounter%5000==0 then task.wait() end
-                local w = Sanitize(v)
-                if #w >= MIN_LETTER_COUNT and w:lower():find(query, 1, true) then
-                    if not CheckHist(w) and not IsBlacklisted(w) then
+                
+                -- 3. SELECTION LOGIC (FLEX/SHORT vs INSTANT)
+                if match and not CheckHist(w) and not IsBlacklisted(w) then
+                    if isShortMode then
+                        -- Keep searching for shorter words
+                        if #w < bestLen then
+                            bestLen = #w
+                            found = w
+                        end
+                    elseif isFlexMode then
+                        -- Keep searching for longer words
+                        if #w > bestLen then
+                            bestLen = #w
+                            found = w
+                        end
+                    else
+                        -- Standard Mode: Stop at the very first match found
                         found = w
                         break
                     end
@@ -255,13 +267,16 @@ local function DoSearch()
             task.wait(0.1) 
             TypeWord(found)
         else
-            WordStatus.Text = "No clean words found!"
+            WordStatus.Text = "No word found!"
             WordStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
         end
     end)
 end
 
--- TOGGLES
+--------------------------------------------------------------------------------
+-- 5. BUTTON EVENTS
+--------------------------------------------------------------------------------
+-- Toggles
 FirstB.MouseButton1Click:Connect(function() 
     local on = FirstB.Text:find("OFF"); FirstB.Text = on and "First: ON" or "First: OFF"
     FirstB.BackgroundColor3 = on and Color3.fromRGB(230, 126, 34) or Color3.fromRGB(50,50,50)
@@ -277,12 +292,11 @@ FlexB.MouseButton1Click:Connect(function()
     if on then ShortB.Text="Short: OFF"; ShortB.BackgroundColor3=Color3.fromRGB(50,50,50) end
 end)
 LockB.MouseButton1Click:Connect(function()
-    isLockIn = not isLockIn
-    LockB.Text = isLockIn and "Lock: ON" or "Lock: OFF"
+    isLockIn = not isLockIn; LockB.Text = isLockIn and "Lock: ON" or "Lock: OFF"
     LockB.BackgroundColor3 = isLockIn and Color3.fromRGB(52, 152, 219) or Color3.fromRGB(50,50,50)
 end)
 
--- SAVE & BLACKLISTS
+-- Actions
 SaveB.MouseButton1Click:Connect(function()
     if isTyping or lastFound == "" then return end
     table.insert(SAVED_LIST, lastFound)
@@ -302,13 +316,13 @@ end)
 
 LL_Btn.MouseButton1Click:Connect(function()
     LL_Enabled = not LL_Enabled
-    if LL_Enabled and next(LL_Table) == nil then WordStatus.Text = "Downloading LL Blacklist..."; FetchBlacklist(LL_BLACKLIST_URL, LL_Table) end
+    if LL_Enabled and next(LL_Table) == nil then WordStatus.Text = "DL Blacklist..."; FetchBlacklist(LL_BLACKLIST_URL, LL_Table) end
     LL_Btn.BackgroundColor3 = LL_Enabled and Color3.fromRGB(211, 84, 0) or Color3.fromRGB(40,40,40)
     LL_Btn.Text = LL_Enabled and "LL Blacklist: ON" or "Last Letter Blacklist"
 end)
 WB_Btn.MouseButton1Click:Connect(function()
     WB_Enabled = not WB_Enabled
-    if WB_Enabled and next(WB_Table) == nil then WordStatus.Text = "Downloading WB Blacklist..."; FetchBlacklist(WB_BLACKLIST_URL, WB_Table) end
+    if WB_Enabled and next(WB_Table) == nil then WordStatus.Text = "DL Blacklist..."; FetchBlacklist(WB_BLACKLIST_URL, WB_Table) end
     WB_Btn.BackgroundColor3 = WB_Enabled and Color3.fromRGB(192, 57, 43) or Color3.fromRGB(40,40,40)
     WB_Btn.Text = WB_Enabled and "WB Blacklist: ON" or "Word Bomb Blacklist"
 end)
