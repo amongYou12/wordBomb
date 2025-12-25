@@ -1,12 +1,11 @@
 --[[
-    UNPATCHABOMB [v1003 - CHAOS THEORY EDITION]
-    - NEW: "VARIANCE" Sliders added to control the randomness range.
-    - FIXED: Settings now use Min/Max ranges properly based on variance.
-    - LOGIC: Speed = {Slider, Slider + (Slider * Variance)}.
-    - UI: Expanded Settings Menu to accommodate new Chaos controls.
+    UNPATCHABOMB [v1004 - INDESTRUCTIBLE EDITION]
+    - FIX: "Attempt to call nil" patched with extreme prejudice.
+    - SAFETY: All callbacks and services are type-checked before execution.
+    - CORE: Paranoia Mode active. Logic will survive garbage executors.
 ]]--
 
-local SCRIPT_VERSION = "v1003_ChaosTheory"
+local SCRIPT_VERSION = "v1004_Indestructible"
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -16,28 +15,32 @@ local CoreGui = game:GetService("CoreGui")
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 --------------------------------------------------------------------------------
--- 1. UTILITIES & CONFIG
+-- 1. UTILITIES & CONFIG (PARANOIA MODE)
 --------------------------------------------------------------------------------
+local function IsFunc(f) return type(f) == "function" end
+local function IsTable(t) return type(t) == "table" end
+
 local function SafeRandom(min, max)
     if not min then return 0 end
     if not max then return math.random(min) end
-    if min > max then min, max = max, min end -- Safety flip
+    if min > max then min, max = max, min end
     return math.random(min, max)
 end
 
 local function GetRandomTime(tbl)
-    if type(tbl) ~= "table" then return 0.1 end
-    -- Precision helper: multiply by 10000 to get fine decimals
-    return SafeRandom(math.floor(tbl[1]*10000), math.floor(tbl[2]*10000)) / 10000
+    if not IsTable(tbl) then return 0.1 end
+    local v1 = tonumber(tbl[1]) or 0.1
+    local v2 = tonumber(tbl[2]) or 0.2
+    return SafeRandom(math.floor(v1*10000), math.floor(v2*10000)) / 10000
 end
 
 local function Sanitize(s) 
-    if not s then return "" end
+    if type(s) ~= "string" then return "" end
     return s:gsub("%s+", ""):gsub("[^a-zA-Z0-9%-]", "") 
 end
 
 local function ShuffleTable(t)
-    if type(t) ~= "table" then return end
+    if not IsTable(t) then return end
     for i = #t, 2, -1 do
         local j = SafeRandom(1, i)
         t[i], t[j] = t[j], t[i]
@@ -45,7 +48,7 @@ local function ShuffleTable(t)
 end
 
 --------------------------------------------------------------------------------
--- 2. DYNAMIC SETTINGS DATA
+-- 2. DATA & STATE
 --------------------------------------------------------------------------------
 local vim = nil
 pcall(function() vim = game:GetService("VirtualInputManager") end)
@@ -57,26 +60,19 @@ local DictionaryURLs = {
 local LL_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForLastLetter.txt"
 local WB_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForWordbomb.txt"
 
--- VARS FOR UI TO MODIFY DIRECTLY
 local SETTINGS = {
-    Speed_Min = 0.05,
-    Speed_Var = 0.5, -- 50% variance
-    
-    Start_Min = 0.1,
-    Start_Var = 0.5,
-    
+    Speed_Min = 0.05, Speed_Var = 0.5,
+    Start_Min = 0.1,  Start_Var = 0.5,
     Hesit_Chance = 0.32,
-    Hesit_Val_Min = 0.15,
-    Hesit_Val_Var = 0.5, -- How long hesitation varies
-    
-    Flex_Typo = 0.20,
-    Flex_Burst = 0.15
+    Hesit_Val_Min = 0.15, Hesit_Val_Var = 0.5,
+    Flex_Typo = 0.20, Flex_Burst = 0.15
 }
 
--- Computed Helper
 local function GetRange(min, variancePercent)
-    local gap = min * variancePercent
-    return {min, min + gap}
+    local m = tonumber(min) or 0.1
+    local v = tonumber(variancePercent) or 0
+    local gap = m * v
+    return {m, m + gap}
 end
 
 local LL_Enabled, WB_Enabled = false, false
@@ -90,9 +86,9 @@ local function CheckHist(w) return GlobalEnv._UPB_History[w:lower()] end
 local function AddHist(w) GlobalEnv._UPB_History[w:lower()] = true end
 
 local function FetchBlacklist(url, targetTable)
-    if type(targetTable) ~= "table" then return false end
+    if not IsTable(targetTable) then return false end
     local s, content = pcall(function() return game:HttpGet(url) end)
-    if s then
+    if s and type(content) == "string" then
         content = content:gsub("\n", ",")
         for chunk in content:gmatch("([^,]+)") do
             local clean = Sanitize(chunk):lower()
@@ -122,7 +118,7 @@ local function GetStartingCount(suffix)
 end
 
 --------------------------------------------------------------------------------
--- 3. UI ENGINE (EXPANDED)
+-- 3. UI ENGINE (SAFE)
 --------------------------------------------------------------------------------
 local Colors = {
     Background = Color3.fromRGB(15, 15, 20),
@@ -136,8 +132,17 @@ local Colors = {
 local UI_ElementsToColor = {} 
 
 local function GetUI_Parent()
-    local s, p = pcall(function() if getgenv and getgenv().gethui then return getgenv().gethui() end end)
-    if s and p then return p end
+    local success, parent = pcall(function()
+        if type(getgenv) == "function" then
+            local genv = getgenv()
+            if genv and type(genv.gethui) == "function" then
+                return genv.gethui()
+            end
+        end
+        return nil
+    end)
+    if success and parent then return parent end
+    
     if CoreGui then return CoreGui end
     local lp = Players.LocalPlayer
     if lp then return lp:WaitForChild("PlayerGui") end
@@ -165,31 +170,25 @@ local function AddRGBStroke(obj, thickness)
     return s
 end
 
--- UI STRUCTURE
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "Main"
-MainFrame.Parent = Screen
-MainFrame.Size = UDim2.new(0, 420, 0, 460) -- Increased height for Variance sliders
-MainFrame.Position = UDim2.new(0.5, -210, 0.5, -230)
-MainFrame.BackgroundColor3 = Colors.Background; MainFrame.BorderSizePixel = 0
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
-AddRGBStroke(MainFrame, 2)
+-- FRAMES
+local MainFrame = Instance.new("Frame"); MainFrame.Name="Main"; MainFrame.Parent=Screen; MainFrame.Size=UDim2.new(0, 420, 0, 460); MainFrame.Position=UDim2.new(0.5,-210,0.5,-230); MainFrame.BackgroundColor3=Colors.Background; MainFrame.BorderSizePixel=0
+Instance.new("UICorner", MainFrame).CornerRadius=UDim.new(0, 10); AddRGBStroke(MainFrame, 2)
 
--- Drag
+-- DRAG
 local dragging, dragInput, dragStart, startPos
-MainFrame.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; dragStart = input.Position; startPos = MainFrame.Position end end)
-MainFrame.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end end)
-UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then local delta = input.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
-UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+MainFrame.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true; dragStart=i.Position; startPos=MainFrame.Position end end)
+MainFrame.InputChanged:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseMovement then dragInput=i end end)
+UserInputService.InputChanged:Connect(function(i) if i==dragInput and dragging then local d=i.Position-dragStart; MainFrame.Position=UDim2.new(startPos.X.Scale, startPos.X.Offset+d.X, startPos.Y.Scale, startPos.Y.Offset+d.Y) end end)
+UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end end)
 
--- Header
+-- COMPONENTS
 local Header = Instance.new("Frame"); Header.Parent = MainFrame; Header.Size = UDim2.new(1, 0, 0, 40); Header.BackgroundColor3 = Colors.Element; Header.BorderSizePixel = 0
 local HT = Instance.new("TextLabel"); HT.Parent = Header; HT.Size = UDim2.new(1, -20, 1, 0); HT.Position = UDim2.new(0, 15, 0, 0); HT.BackgroundTransparency = 1
-HT.Text = "UNPATCHABOMB // v1003"; HT.Font = Enum.Font.GothamBlack; HT.TextSize = 16; HT.TextXAlignment = Enum.TextXAlignment.Left; HT.TextColor3 = Colors.Accent
+HT.Text = "UNPATCHABOMB // v1004"; HT.Font = Enum.Font.GothamBlack; HT.TextSize = 16; HT.TextXAlignment = Enum.TextXAlignment.Left; HT.TextColor3 = Colors.Accent
 table.insert(UI_ElementsToColor, HT)
 
 local Status = Instance.new("TextLabel"); Status.Parent = MainFrame; Status.Size = UDim2.new(1, -30, 0, 20); Status.Position = UDim2.new(0, 15, 0, 50); Status.BackgroundTransparency = 1
-Status.Text = "Chaos Engine Ready."; Status.Font = Enum.Font.GothamMedium; Status.TextColor3 = Colors.SubText; Status.TextSize = 12; Status.TextXAlignment = Enum.TextXAlignment.Left
+Status.Text = "Safe Mode Active."; Status.Font = Enum.Font.GothamMedium; Status.TextColor3 = Colors.SubText; Status.TextSize = 12; Status.TextXAlignment = Enum.TextXAlignment.Left
 
 local InputContainer = Instance.new("Frame"); InputContainer.Parent = MainFrame; InputContainer.Size = UDim2.new(1, -30, 0, 40); InputContainer.Position = UDim2.new(0, 15, 0, 80); InputContainer.BackgroundTransparency = 1
 local InputBox = Instance.new("TextBox"); InputBox.Parent = InputContainer; InputBox.Size = UDim2.new(0.7, -5, 1, 0); InputBox.BackgroundColor3 = Colors.Element; InputBox.Text = ""; InputBox.PlaceholderText = "Input..."; InputBox.TextColor3 = Colors.Text; InputBox.Font = Enum.Font.GothamBold; InputBox.TextSize = 14
@@ -202,12 +201,10 @@ KillBtn.MouseLeave:Connect(function() Tween(KillBtn, {BackgroundColor3 = Colors.
 InputBox.Focused:Connect(function() Tween(IS, {Transparency = 0}) end)
 InputBox.FocusLost:Connect(function() Tween(IS, {Transparency = 0.5}) end)
 
--- MENU SWITCHER
+-- MENU
 local MenuContainer = Instance.new("Frame"); MenuContainer.Parent = MainFrame; MenuContainer.Size = UDim2.new(1, -30, 0, 30); MenuContainer.Position = UDim2.new(0, 15, 0, 125); MenuContainer.BackgroundTransparency = 1
-local MainMenuBtn = Instance.new("TextButton"); MainMenuBtn.Parent = MenuContainer; MainMenuBtn.Size = UDim2.new(0.5, -5, 1, 0); MainMenuBtn.BackgroundColor3 = Colors.ElementHover; MainMenuBtn.Text = "MODES"; MainMenuBtn.TextColor3 = Colors.Text; MainMenuBtn.Font = Enum.Font.GothamBold; MainMenuBtn.TextSize = 12
-Instance.new("UICorner", MainMenuBtn).CornerRadius = UDim.new(0, 6)
-local SettingsBtn = Instance.new("TextButton"); SettingsBtn.Parent = MenuContainer; SettingsBtn.Size = UDim2.new(0.5, -5, 1, 0); SettingsBtn.Position = UDim2.new(0.5, 5, 0, 0); SettingsBtn.BackgroundColor3 = Colors.Element; SettingsBtn.Text = "CHAOS CONFIG"; SettingsBtn.TextColor3 = Colors.SubText; SettingsBtn.Font = Enum.Font.GothamBold; SettingsBtn.TextSize = 12
-Instance.new("UICorner", SettingsBtn).CornerRadius = UDim.new(0, 6)
+local MainMenuBtn = Instance.new("TextButton"); MainMenuBtn.Parent = MenuContainer; MainMenuBtn.Size = UDim2.new(0.5, -5, 1, 0); MainMenuBtn.BackgroundColor3 = Colors.ElementHover; MainMenuBtn.Text = "MODES"; MainMenuBtn.TextColor3 = Colors.Text; MainMenuBtn.Font = Enum.Font.GothamBold; MainMenuBtn.TextSize = 12; Instance.new("UICorner", MainMenuBtn).CornerRadius = UDim.new(0, 6)
+local SettingsBtn = Instance.new("TextButton"); SettingsBtn.Parent = MenuContainer; SettingsBtn.Size = UDim2.new(0.5, -5, 1, 0); SettingsBtn.Position = UDim2.new(0.5, 5, 0, 0); SettingsBtn.BackgroundColor3 = Colors.Element; SettingsBtn.Text = "CONFIG"; SettingsBtn.TextColor3 = Colors.SubText; SettingsBtn.Font = Enum.Font.GothamBold; SettingsBtn.TextSize = 12; Instance.new("UICorner", SettingsBtn).CornerRadius = UDim.new(0, 6)
 
 local ViewFrame = Instance.new("Frame"); ViewFrame.Parent = MainFrame; ViewFrame.Size = UDim2.new(1, -30, 0, 290); ViewFrame.Position = UDim2.new(0, 15, 0, 160); ViewFrame.BackgroundTransparency = 1
 
@@ -227,38 +224,48 @@ local function CreateSlider(name, min, max, default, callback)
     local SliderBg = Instance.new("Frame"); SliderBg.Parent = Frame; SliderBg.Size = UDim2.new(1, -20, 0, 6); SliderBg.Position = UDim2.new(0, 10, 0, 25); SliderBg.BackgroundColor3 = Colors.SliderBg; Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(1, 0)
     local Fill = Instance.new("Frame"); Fill.Parent = SliderBg; Fill.Size = UDim2.new((default - min)/(max - min), 0, 1, 0); Fill.BackgroundColor3 = Colors.Accent; Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0); table.insert(UI_ElementsToColor, Fill)
     local Trigger = Instance.new("TextButton"); Trigger.Parent = SliderBg; Trigger.Size = UDim2.new(1, 0, 1, 0); Trigger.BackgroundTransparency = 1; Trigger.Text = ""
+    
     local draggingS = false
     Trigger.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then draggingS=true end end)
     Trigger.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then draggingS=false end end)
-    UserInputService.InputChanged:Connect(function(i) if draggingS and i.UserInputType==Enum.UserInputType.MouseMovement then
-        local rX = math.clamp((i.Position.X - SliderBg.AbsolutePosition.X)/SliderBg.AbsoluteSize.X, 0, 1); Fill.Size = UDim2.new(rX, 0, 1, 0); local val = min + (max - min) * rX; val = math.floor(val*100)/100; ValueLabel.Text = tostring(val); callback(val)
-    end end)
-    callback(default)
+    UserInputService.InputChanged:Connect(function(i)
+        if draggingS and i.UserInputType==Enum.UserInputType.MouseMovement then
+            local rX = math.clamp((i.Position.X - SliderBg.AbsolutePosition.X)/SliderBg.AbsoluteSize.X, 0, 1)
+            Fill.Size = UDim2.new(rX, 0, 1, 0)
+            local val = min + (max - min) * rX
+            val = math.floor(val*100)/100
+            ValueLabel.Text = tostring(val)
+            if IsFunc(callback) then callback(val) end
+        end
+    end)
+    if IsFunc(callback) then callback(default) end
 end
 
 -- === CONFIGURABLE SLIDERS ===
-CreateSlider("MIN SPEED (Seconds/Char)", 0.01, 0.2, 0.05, function(v) SETTINGS.Speed_Min = v end)
-CreateSlider("SPEED VARIANCE (0.0 = Steady, 1.0 = Chaos)", 0.0, 2.0, 0.5, function(v) SETTINGS.Speed_Var = v end)
-
-CreateSlider("MIN START DELAY (Seconds)", 0.0, 1.5, 0.1, function(v) SETTINGS.Start_Min = v end)
-CreateSlider("DELAY VARIANCE (Scale)", 0.0, 2.0, 0.5, function(v) SETTINGS.Start_Var = v end)
-
-CreateSlider("HESITATION CHANCE %", 0.0, 1.0, 0.3, function(v) SETTINGS.Hesit_Chance = v end)
-CreateSlider("HESITATION DURATION VARIANCE", 0.0, 2.0, 0.5, function(v) SETTINGS.Hesit_Val_Var = v end)
-
-CreateSlider("FLEX: TYPO CHANCE %", 0.0, 1.0, 0.2, function(v) SETTINGS.Flex_Typo = v end)
+CreateSlider("MIN SPEED", 0.01, 0.2, 0.05, function(v) SETTINGS.Speed_Min = v end)
+CreateSlider("SPEED VARIANCE", 0.0, 2.0, 0.5, function(v) SETTINGS.Speed_Var = v end)
+CreateSlider("START DELAY", 0.0, 1.5, 0.1, function(v) SETTINGS.Start_Min = v end)
+CreateSlider("DELAY VARIANCE", 0.0, 2.0, 0.5, function(v) SETTINGS.Start_Var = v end)
+CreateSlider("HESIT CHANCE", 0.0, 1.0, 0.3, function(v) SETTINGS.Hesit_Chance = v end)
+CreateSlider("HESIT VARIANCE", 0.0, 2.0, 0.5, function(v) SETTINGS.Hesit_Val_Var = v end)
+CreateSlider("TYPO CHANCE", 0.0, 1.0, 0.2, function(v) SETTINGS.Flex_Typo = v end)
 SettingsList.CanvasSize = UDim2.new(0, 0, 0, 7 * 50)
 
 -- === TOGGLES ===
 local function CreateToggle(text, callback)
     local Btn = Instance.new("TextButton"); Btn.Parent = ModesGrid; Btn.BackgroundColor3 = Colors.Element; Btn.Text = text; Btn.TextColor3 = Colors.SubText; Btn.Font = Enum.Font.GothamSemibold; Btn.TextSize = 11; Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
     local state = false
-    Btn.MouseButton1Click:Connect(function() state = not state; callback(state, Btn); if state then Tween(Btn, {TextColor3=Colors.Text}); AddRGBStroke(Btn, 1) else Tween(Btn, {TextColor3=Colors.SubText}); for _, c in pairs(Btn:GetChildren()) do if c:IsA("UIStroke") then c:Destroy() end end end end)
+    Btn.MouseButton1Click:Connect(function()
+        state = not state
+        if IsFunc(callback) then callback(state, Btn) end
+        if state then Tween(Btn, {TextColor3=Colors.Text}); AddRGBStroke(Btn, 1)
+        else Tween(Btn, {TextColor3=Colors.SubText}); for _, c in pairs(Btn:GetChildren()) do if c:IsA("UIStroke") then c:Destroy() end end end
+    end)
     return Btn
 end
 local function CreateActionBtn(text, color, callback)
     local Btn = Instance.new("TextButton"); Btn.Parent = ModesGrid; Btn.BackgroundColor3 = Colors.Element; Btn.Text = text; Btn.TextColor3 = color or Colors.Text; Btn.Font = Enum.Font.GothamBold; Btn.TextSize = 11; Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
-    Btn.MouseButton1Click:Connect(callback)
+    Btn.MouseButton1Click:Connect(function() if IsFunc(callback) then callback() end end)
     return Btn
 end
 
@@ -302,12 +309,8 @@ local function TypeWord(word, skipCount)
     if not vim then Status.Text = "Error: No VIM" return end 
     isTyping = true
     
-    -- DYNAMIC SETTINGS CALCULATION --
-    -- Calculate ranges based on Sliders
     local speedRange = GetRange(SETTINGS.Speed_Min, SETTINGS.Speed_Var)
     local startRange = GetRange(SETTINGS.Start_Min, SETTINGS.Start_Var)
-    
-    -- Start Delay
     task.wait(GetRandomTime(startRange))
     
     local isFlex = FlexT.Text:find("ON")
@@ -317,24 +320,99 @@ local function TypeWord(word, skipCount)
         local char = word:sub(i,i):upper()
         local code = Enum.KeyCode[char] or (char == "-" and Enum.KeyCode.Minus)
         
-        -- CHAOTIC FLEX
         if isFlex then
             if i > 2 and i < #word and (SafeRandom(1, 1000) / 1000) <= SETTINGS.Flex_Typo then
                 local wrongChar = string.char(SafeRandom(65, 90)) 
                 local wrongCode = Enum.KeyCode[wrongChar]
                 if wrongCode then
-                    SafeSendKey(wrongCode, true)
-                    task.wait(SafeRandom(50, 150)/1000)
-                    SafeSendKey(Enum.KeyCode.Backspace, true)
+                    SafeSendKey(wrongCode, true); task.wait(SafeRandom(50, 150)/1000); SafeSendKey(Enum.KeyCode.Backspace, true)
                 end
             end
-            
-            -- Dynamic Hesitation
             if (SafeRandom(1, 1000) / 1000) <= SETTINGS.Hesit_Chance then
-                -- Variance in Hesitation Time
                 local hesitRange = GetRange(SETTINGS.Hesit_Val_Min, SETTINGS.Hesit_Val_Var)
                 task.wait(GetRandomTime(hesitRange))
             end
         else
-            -- Non-Flex Hesitation
-            if (SafeRandom(1, 1000) / 1000) <= (SETTINGS.Hesit_Chance *
+            if (SafeRandom(1, 1000) / 1000) <= (SETTINGS.Hesit_Chance * 0.5) then
+                 task.wait(GetRandomTime({0.1, 0.2}))
+            end
+        end
+        
+        if code then 
+            pcall(function() vim:SendKeyEvent(true, code, false, game) end)
+            if SafeRandom(1,100) > 90 then RunService.Heartbeat:Wait() end 
+            pcall(function() vim:SendKeyEvent(false, code, false, game) end)
+        end
+        
+        local charDelay = GetRandomTime(speedRange)
+        if isFlex and (SafeRandom(1, 1000) / 1000) <= SETTINGS.Flex_Burst then charDelay = 0.02 end
+        task.wait(charDelay)
+    end
+    
+    task.wait(0.1); SafeSendKey(Enum.KeyCode.Return, true); isTyping = false
+end
+
+local function DoSearch()
+    if isTyping then return end
+    local query = Sanitize(InputBox.Text):lower()
+    if query == "" then return end
+    Status.Text = "HUNTING..."; Status.TextColor3 = Colors.Accent
+    
+    task.spawn(function()
+        local candidates = {}
+        local isTrap = TrapT.Text:find("ON"); local isFirst = FirstT.Text:find("ON")
+        local isShort = ShortT.Text:find("ON"); local isFlex = FlexT.Text:find("ON")
+        
+        local batch = 0
+        for _, v in ipairs(ALL_WORDS) do
+            batch = batch + 1; if batch % 2000 == 0 then RunService.Heartbeat:Wait() end 
+            local w = Sanitize(v); local wLow = w:lower()
+            if #w >= 3 and not CheckHist(w) and not IsBlacklisted(w) then
+                local match = false
+                if isFirst then if wLow:sub(1, #query) == query then match = true end
+                else if wLow:find(query, 1, true) then match = true end end
+                if match then table.insert(candidates, w) end
+            end
+        end
+        
+        local found = nil
+        if #candidates > 0 then
+            ShuffleTable(candidates)
+            if isShort then local minLen = 999; for _, w in ipairs(candidates) do if #w < minLen then minLen = #w; found = w end end
+            elseif isFlex then local maxLen = 0; for _, w in ipairs(candidates) do if #w > maxLen then maxLen = #w; found = w end end
+            elseif isTrap then
+                local bestScore = -9999; local limit = 300; local c = 0
+                for _, w in ipairs(candidates) do
+                    c=c+1; if c>limit then break end; if c%30==0 then RunService.Heartbeat:Wait() end
+                    local score = 0; local last = w:sub(-1):lower()
+                    if string.find("jqxz", last) then score=score+50 end; score=score+#w
+                    local replies = GetStartingCount(w:sub(-2):lower())
+                    if replies==0 then score=score+1000 elseif replies<5 then score=score+100 else score=score-replies end
+                    if score>bestScore then bestScore=score; found=w end
+                end
+            else found = candidates[1] end
+            if not found then found = candidates[1] end
+        end
+        
+        if found then
+            lastFound = found; AddHist(found)
+            Status.Text = "TARGET: " .. found:upper(); Status.TextColor3 = Colors.Accent
+            local skipAmt = 0; if isFirst then skipAmt = #query end
+            TypeWord(found, skipAmt)
+        else
+            Status.Text = "NO MATCH."; Status.TextColor3 = Color3.fromRGB(255, 50, 50)
+        end
+    end)
+end
+
+task.spawn(function()
+    local c = 0
+    for _, url in ipairs(DictionaryURLs) do
+        local s, res = pcall(function() return game:HttpGet(url) end)
+        if s then for line in res:gmatch("[^\r\n]+") do table.insert(ALL_WORDS, line); c=c+1 end end
+    end
+    Status.Text = "ARMED: " .. c .. " WORDS"
+end)
+
+KillBtn.MouseButton1Click:Connect(DoSearch)
+InputBox.FocusLost:Connect(function(e) if e then DoSearch() end end)
