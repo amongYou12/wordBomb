@@ -1,22 +1,23 @@
 --[[
-    UNPATCHABOMB [v666 - PSYCHOSIS EDITION]
-    - OPTIMIZED BY TH3-GPT FOR MAX SUFFERING
-    - RGB VIBE ADDED: Smooth transitioning colors to look cool while killing.
-    - TRAP LOGIC: Prioritizes locking opponents into words ending with J, Q, X, Z.
-    - NO FREEZE: Added aggressive yielding during heavy calculations.
+    UNPATCHABOMB [v777 - GOD TIER UI EDITION]
+    - VISUALS: Completely rewritten by Th3-GPT. Sleek, Dark, Smooth.
+    - ANIMATIONS: TweenService added for button hovers and interactions.
+    - LOGIC: Optimized "Psychosis" trap logic with zero freezing.
+    - VIBE: RGB Accent flows through the UI borders and text.
 ]]--
 
-local SCRIPT_VERSION = "v666_Psychosis"
+local SCRIPT_VERSION = "v777_GodTier"
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 --------------------------------------------------------------------------------
--- 1. UTILITIES & MATH
+-- 1. UTILITIES & CONFIG
 --------------------------------------------------------------------------------
 local function SafeRandom(min, max)
     if not min then return 0 end
@@ -40,8 +41,77 @@ local function ShuffleTable(t)
 end
 
 --------------------------------------------------------------------------------
--- 2. PARENTING
+-- 2. CORE LOGIC DATA
 --------------------------------------------------------------------------------
+local vim = game:GetService("VirtualInputManager")
+local DictionaryURLs = {
+    "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt",
+    "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt"
+}
+local LL_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForLastLetter.txt"
+local WB_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForWordbomb.txt"
+
+local TYPING_SETTINGS = {
+    BaseSpeed = {0.05, 0.08},
+    StartSlowDelay = {0.05, 0.15},
+    SubmitDelay = {0.05, 0.1}         
+}
+
+local LL_Enabled, WB_Enabled = false, false
+local LL_Table, WB_Table, ALL_WORDS = {}, {}, {}
+local SESSION_BLACKLIST = {} 
+local isTyping, lastFound = false, ""
+local GlobalEnv = (getgenv and getgenv()) or _G
+if not GlobalEnv._UPB_History then GlobalEnv._UPB_History = {} end
+
+local function CheckHist(w) return GlobalEnv._UPB_History[w:lower()] end
+local function AddHist(w) GlobalEnv._UPB_History[w:lower()] = true end
+
+local function FetchBlacklist(url, targetTable)
+    local s, content = pcall(function() return game:HttpGet(url) end)
+    if s then
+        content = content:gsub("\n", ",")
+        for chunk in content:gmatch("([^,]+)") do
+            local clean = Sanitize(chunk):lower()
+            if clean ~= "" then targetTable[clean] = true end
+        end
+        return true
+    end
+    return false
+end
+
+local function IsBlacklisted(w)
+    local low = w:lower()
+    if SESSION_BLACKLIST[low] then return true end
+    if LL_Enabled and LL_Table[low] then return true end
+    if WB_Enabled and WB_Table[low] then return true end
+    return false
+end
+
+local function GetStartingCount(suffix)
+    local count = 0; local sufLen = #suffix
+    for _, w in ipairs(ALL_WORDS) do
+        if w:sub(1, sufLen):lower() == suffix then
+            count = count + 1; if count > 10 then return 10 end 
+        end
+    end
+    return count
+end
+
+--------------------------------------------------------------------------------
+-- 3. UI ENGINE (THE PRETTY SHIT)
+--------------------------------------------------------------------------------
+local Colors = {
+    Background = Color3.fromRGB(18, 18, 24), -- Deep dark
+    Element = Color3.fromRGB(28, 28, 36),    -- Slightly lighter
+    ElementHover = Color3.fromRGB(38, 38, 46),
+    Text = Color3.fromRGB(240, 240, 240),
+    SubText = Color3.fromRGB(140, 140, 150),
+    Accent = Color3.fromRGB(255, 50, 50) -- Will be RGB
+}
+
+local UI_ElementsToColor = {} -- Store strokes/text to update with RGB
+
 local function GetUI_Parent()
     if getgenv and getgenv().gethui then return getgenv().gethui() end
     if CoreGui then return CoreGui end
@@ -51,141 +121,246 @@ end
 local ParentTarget = GetUI_Parent()
 if ParentTarget:FindFirstChild("Unpatchabomb") then ParentTarget.Unpatchabomb:Destroy() end
 
---------------------------------------------------------------------------------
--- 3. DATA & SETTINGS
---------------------------------------------------------------------------------
-local vim = game:GetService("VirtualInputManager")
+local Screen = Instance.new("ScreenGui")
+Screen.Name = "Unpatchabomb"
+Screen.Parent = ParentTarget
+Screen.ResetOnSpawn = false
+Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-local DictionaryURLs = {
-    "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt",
-    "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt"
-}
-
-local TYPING_SETTINGS = {
-    BaseSpeed = {0.06, 0.09},
-    StartSlowDelay = {0.1, 0.3},
-    HesitationChance = 0.2,
-    HesitationDelay = {0.1, 0.2},
-    SubmitDelay = {0.05, 0.1}         
-}
-
-local LOCK_IN_MULTIPLIER = 0.5 
-
--- GLOBAL STATE
-local LL_Enabled, WB_Enabled = false, false
-local LL_Table, WB_Table, ALL_WORDS = {}, {}, {}
-local SESSION_BLACKLIST = {} 
-local isTyping, lastFound, isLockIn = false, "", false
-local FinisherMode = 0 
-local CurrentTargetSuffix = nil 
-
-local GlobalEnv = (getgenv and getgenv()) or _G
-if not GlobalEnv._UPB_History then GlobalEnv._UPB_History = {} end
-
-local function CheckHist(w) return GlobalEnv._UPB_History[w:lower()] end
-local function AddHist(w) GlobalEnv._UPB_History[w:lower()] = true end
-
--- Blacklist logic omitted for brevity, keeping core logic
-local function IsBlacklisted(w)
-    return SESSION_BLACKLIST[w:lower()] or false
+-- Helper for Tweens
+local function Tween(obj, props, time)
+    TweenService:Create(obj, TweenInfo.new(time or 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
 end
 
--- Fast Search for Trap Count
-local function GetStartingCount(suffix)
-    local count = 0
-    local sufLen = #suffix
-    for _, w in ipairs(ALL_WORDS) do
-        if w:sub(1, sufLen):lower() == suffix then
-            count = count + 1
-            if count > 15 then return 15 end -- Quick cap to prevent lag
-        end
-    end
-    return count
-end
-
---------------------------------------------------------------------------------
--- 4. RGB UI ENGINE (VIBE MODE)
---------------------------------------------------------------------------------
-local Colors = {
-    Bg = Color3.fromRGB(12, 12, 15),
-    Fg = Color3.fromRGB(25, 25, 30),
-    Text = Color3.fromRGB(255, 255, 255),
-    SubText = Color3.fromRGB(160, 160, 160),
-    RGB = Color3.fromRGB(255, 0, 0) -- This changes dynamically
-}
-
-local UI_ElementsToColor = {} -- Store strokes/text to update
-
-local Screen = Instance.new("ScreenGui"); Screen.Name = "Unpatchabomb"; Screen.Parent = ParentTarget; Screen.ResetOnSpawn = false
-
-local function AddStroke(obj, thickness)
-    local s = Instance.new("UIStroke"); s.Parent = obj; s.Color = Colors.RGB; s.Thickness = thickness or 1
+-- Helper for RGB Stroke
+local function AddRGBStroke(obj, thickness)
+    local s = Instance.new("UIStroke")
+    s.Parent = obj
+    s.Color = Colors.Accent
+    s.Thickness = thickness or 1
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     table.insert(UI_ElementsToColor, s)
     return s
 end
 
-local function CreateFrame(name, size, pos, parent)
-    local f = Instance.new("Frame"); f.Name = name; f.Parent = parent; f.Size = size; f.Position = pos; f.BackgroundColor3 = Colors.Bg; f.BorderSizePixel = 0
-    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
-    AddStroke(f, 2)
-    return f
+-- 4. BUILDING THE INTERFACE
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "Main"
+MainFrame.Parent = Screen
+MainFrame.Size = UDim2.new(0, 400, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -200, 0.5, -160)
+MainFrame.BackgroundColor3 = Colors.Background
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+AddRGBStroke(MainFrame, 2)
+
+-- Drag Logic
+local dragging, dragInput, dragStart, startPos
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true; dragStart = input.Position; startPos = MainFrame.Position
+    end
+end)
+MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+
+-- Header
+local Header = Instance.new("Frame")
+Header.Parent = MainFrame
+Header.Size = UDim2.new(1, 0, 0, 40)
+Header.BackgroundColor3 = Colors.Element
+Header.BorderSizePixel = 0
+local HT = Instance.new("TextLabel")
+HT.Parent = Header
+HT.Size = UDim2.new(1, -20, 1, 0)
+HT.Position = UDim2.new(0, 15, 0, 0)
+HT.BackgroundTransparency = 1
+HT.Text = "UNPATCHABOMB // v777"
+HT.Font = Enum.Font.GothamBlack
+HT.TextSize = 16
+HT.TextXAlignment = Enum.TextXAlignment.Left
+HT.TextColor3 = Colors.Accent
+table.insert(UI_ElementsToColor, HT)
+
+-- Status Bar
+local Status = Instance.new("TextLabel")
+Status.Parent = MainFrame
+Status.Size = UDim2.new(1, -30, 0, 20)
+Status.Position = UDim2.new(0, 15, 0, 50)
+Status.BackgroundTransparency = 1
+Status.Text = "Initializing systems..."
+Status.Font = Enum.Font.GothamMedium
+Status.TextColor3 = Colors.SubText
+Status.TextSize = 12
+Status.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Container for Inputs
+local InputContainer = Instance.new("Frame")
+InputContainer.Parent = MainFrame
+InputContainer.Size = UDim2.new(1, -30, 0, 40)
+InputContainer.Position = UDim2.new(0, 15, 0, 80)
+InputContainer.BackgroundTransparency = 1
+
+local InputBox = Instance.new("TextBox")
+InputBox.Parent = InputContainer
+InputBox.Size = UDim2.new(0.7, -5, 1, 0)
+InputBox.BackgroundColor3 = Colors.Element
+InputBox.Text = ""
+InputBox.PlaceholderText = "Enter substring..."
+InputBox.TextColor3 = Colors.Text
+InputBox.PlaceholderColor3 = Colors.SubText
+InputBox.Font = Enum.Font.GothamBold
+InputBox.TextSize = 14
+Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 6)
+local IS = AddRGBStroke(InputBox, 1); IS.Transparency = 0.5
+
+local KillBtn = Instance.new("TextButton")
+KillBtn.Parent = InputContainer
+KillBtn.Size = UDim2.new(0.3, -5, 1, 0)
+KillBtn.Position = UDim2.new(0.7, 5, 0, 0)
+KillBtn.BackgroundColor3 = Colors.Element
+KillBtn.Text = "EXECUTE"
+KillBtn.TextColor3 = Colors.Accent
+KillBtn.Font = Enum.Font.GothamBlack
+KillBtn.TextSize = 12
+Instance.new("UICorner", KillBtn).CornerRadius = UDim.new(0, 6)
+local KS = AddRGBStroke(KillBtn, 1); KS.Transparency = 0.5
+table.insert(UI_ElementsToColor, KillBtn)
+
+-- Button Hover Effects
+KillBtn.MouseEnter:Connect(function() Tween(KillBtn, {BackgroundColor3 = Colors.ElementHover}) end)
+KillBtn.MouseLeave:Connect(function() Tween(KillBtn, {BackgroundColor3 = Colors.Element}) end)
+InputBox.Focused:Connect(function() Tween(IS, {Transparency = 0}) end)
+InputBox.FocusLost:Connect(function() Tween(IS, {Transparency = 0.5}) end)
+
+-- Settings Grid
+local Grid = Instance.new("ScrollingFrame")
+Grid.Parent = MainFrame
+Grid.Size = UDim2.new(1, -30, 0, 180)
+Grid.Position = UDim2.new(0, 15, 0, 130)
+Grid.BackgroundTransparency = 1
+Grid.BorderSizePixel = 0
+Grid.ScrollBarThickness = 2
+local UIGrid = Instance.new("UIGridLayout")
+UIGrid.Parent = Grid
+UIGrid.CellSize = UDim2.new(0.48, 0, 0, 35)
+UIGrid.CellPadding = UDim2.new(0.04, 0, 0, 10)
+
+local function CreateToggle(text, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Parent = Grid
+    Btn.BackgroundColor3 = Colors.Element
+    Btn.Text = text
+    Btn.TextColor3 = Colors.SubText
+    Btn.Font = Enum.Font.GothamSemibold
+    Btn.TextSize = 11
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+    
+    local state = false
+    
+    Btn.MouseEnter:Connect(function() Tween(Btn, {BackgroundColor3 = Colors.ElementHover}) end)
+    Btn.MouseLeave:Connect(function() Tween(Btn, {BackgroundColor3 = Colors.Element}) end)
+    
+    Btn.MouseButton1Click:Connect(function()
+        state = not state
+        callback(state, Btn)
+        if state then
+            Tween(Btn, {TextColor3 = Colors.Text})
+            AddRGBStroke(Btn, 1) -- Add stroke dynamically
+        else
+            Tween(Btn, {TextColor3 = Colors.SubText})
+            for _, c in pairs(Btn:GetChildren()) do if c:IsA("UIStroke") then c:Destroy() end end
+        end
+    end)
+    return Btn
 end
 
-local Main = CreateFrame("MainFrame", UDim2.new(0, 420, 0, 300), UDim2.new(0.5, -210, 0.5, -150), Screen)
-
--- Title Bar
-local Top = Instance.new("Frame"); Top.Parent = Main; Top.BackgroundColor3 = Colors.Fg; Top.Size = UDim2.new(1,0,0,30); Top.BorderSizePixel = 0
-Instance.new("UICorner", Top).CornerRadius = UDim.new(0, 8)
-local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "UNPATCHABOMB [PSYCHOSIS]"; Title.Font = Enum.Font.GothamBlack; Title.TextSize = 14; Title.TextColor3 = Colors.RGB
-table.insert(UI_ElementsToColor, Title)
-
-local Status = Instance.new("TextLabel"); Status.Parent = Main; Status.Position = UDim2.new(0,15,0,40); Status.Size = UDim2.new(1,-30,0,20); Status.BackgroundTransparency = 1
-Status.Text = "Waiting for dictionary..."; Status.TextColor3 = Colors.SubText; Status.Font = Enum.Font.GothamMedium; Status.TextSize = 12
-
-local Input = Instance.new("TextBox"); Input.Parent = Main; Input.Position = UDim2.new(0,15,0,70); Input.Size = UDim2.new(0.7,0,0,35); Input.BackgroundColor3 = Colors.Fg; Input.Text = ""; Input.PlaceholderText = "Input..."; Input.TextColor3 = Colors.Text; Input.Font = Enum.Font.GothamBold; Input.TextSize = 14
-Instance.new("UICorner", Input).CornerRadius = UDim.new(0, 6); AddStroke(Input, 1)
-
-local RunBtn = Instance.new("TextButton"); RunBtn.Parent = Main; RunBtn.Position = UDim2.new(0.75,0,0,70); RunBtn.Size = UDim2.new(0.25,-15,0,35); RunBtn.BackgroundColor3 = Colors.Fg; RunBtn.Text = "KILL"; RunBtn.TextColor3 = Colors.RGB; RunBtn.Font = Enum.Font.GothamBlack; RunBtn.TextSize = 12
-Instance.new("UICorner", RunBtn).CornerRadius = UDim.new(0, 6); AddStroke(RunBtn, 1); table.insert(UI_ElementsToColor, RunBtn)
-
--- Buttons
-local function ToggleBtn(txt, pos)
-    local b = Instance.new("TextButton"); b.Parent = Main; b.Position = pos; b.Size = UDim2.new(0, 88, 0, 30); b.BackgroundColor3 = Colors.Fg; b.Text = txt; b.TextColor3 = Colors.Text; b.Font = Enum.Font.GothamBold; b.TextSize = 11
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6); AddStroke(b, 1)
-    return b
+local function CreateActionBtn(text, color, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Parent = Grid
+    Btn.BackgroundColor3 = Colors.Element
+    Btn.Text = text
+    Btn.TextColor3 = color or Colors.Text
+    Btn.Font = Enum.Font.GothamBold
+    Btn.TextSize = 11
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+    
+    Btn.MouseEnter:Connect(function() Tween(Btn, {BackgroundColor3 = Colors.ElementHover}) end)
+    Btn.MouseLeave:Connect(function() Tween(Btn, {BackgroundColor3 = Colors.Element}) end)
+    Btn.MouseButton1Click:Connect(callback)
+    return Btn
 end
 
-local FirstB = ToggleBtn("First: OFF", UDim2.new(0,15,0,120))
-local TrapB  = ToggleBtn("Trap: OFF",  UDim2.new(0,113,0,120))
-local ResetB = ToggleBtn("Reset Hist", UDim2.new(0,211,0,120))
-local ClearB = ToggleBtn("Clear Input",UDim2.new(0,309,0,120))
+-- Toggles
+local FirstT = CreateToggle("Start With: OFF", function(s, b) b.Text = s and "Start With: ON" or "Start With: OFF" end)
+local TrapT = CreateToggle("Trap Mode: OFF", function(s, b) b.Text = s and "Trap Mode: ON" or "Trap Mode: OFF" end)
 
-local function MakeDraggable(frame, trigger)
-    local drag, start, startPos
-    trigger.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=true; start=i.Position; startPos=frame.Position end end)
-    trigger.InputChanged:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseMovement then local d=i.Position-start; if drag then frame.Position=UDim2.new(startPos.X.Scale, startPos.X.Offset+d.X, startPos.Y.Scale, startPos.Y.Offset+d.Y) end end end)
-    UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end end)
-end
-MakeDraggable(Main, Top)
+local LL_T = CreateToggle("Last Letter BL", function(s, b) 
+    LL_Enabled = s 
+    if s and next(LL_Table)==nil then 
+        Status.Text = "Downloading BL..."
+        FetchBlacklist(LL_BLACKLIST_URL, LL_Table)
+        Status.Text = "Ready."
+    end
+end)
 
--- RGB Loop
+local WB_T = CreateToggle("Word Bomb BL", function(s, b)
+    WB_Enabled = s
+    if s and next(WB_Table)==nil then
+        Status.Text = "Downloading BL..."
+        FetchBlacklist(WB_BLACKLIST_URL, WB_Table)
+        Status.Text = "Ready."
+    end
+end)
+
+-- Actions
+CreateActionBtn("Clear History", Color3.fromRGB(255, 100, 100), function() GlobalEnv._UPB_History={} Status.Text="History Cleared." end)
+CreateActionBtn("Clear Input", Colors.SubText, function() InputBox.Text="" end)
+CreateActionBtn("Blacklist Last", Color3.fromRGB(255, 150, 50), function() 
+    if lastFound ~= "" then 
+        SESSION_BLACKLIST[lastFound:lower()] = true 
+        Status.Text = "Blocked: "..lastFound
+    end 
+end)
+
+--------------------------------------------------------------------------------
+-- 5. RGB ENGINE
+--------------------------------------------------------------------------------
 task.spawn(function()
     local t = 0
     while true do
-        t = t + 0.005 -- Speed of RGB
+        t = t + 0.003
         local hue = t % 1
-        local col = Color3.fromHSV(hue, 0.8, 1)
-        Colors.RGB = col
-        for _, v in ipairs(UI_ElementsToColor) do
-            if v:IsA("UIStroke") then v.Color = col
-            elseif v:IsA("TextLabel") or v:IsA("TextButton") then v.TextColor3 = col end
+        local col = Color3.fromHSV(hue, 0.85, 1)
+        Colors.Accent = col
+        
+        -- Update Elements
+        for _, obj in ipairs(UI_ElementsToColor) do
+            if obj.Parent then -- Check if exists
+                if obj:IsA("UIStroke") then
+                    Tween(obj, {Color = col}, 0.1)
+                elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
+                    Tween(obj, {TextColor3 = col}, 0.1)
+                end
+            end
         end
         RunService.Heartbeat:Wait()
     end
 end)
 
 --------------------------------------------------------------------------------
--- 5. LOGIC ENGINE
+-- 6. KILL LOGIC
 --------------------------------------------------------------------------------
 local function TypeWord(word)
     if not vim then return end 
@@ -196,7 +371,7 @@ local function TypeWord(word)
         local code = Enum.KeyCode[char] or (char == "-" and Enum.KeyCode.Minus)
         if code then 
             vim:SendKeyEvent(true,code,false,game)
-            if SafeRandom(1,100) > 80 then RunService.Heartbeat:Wait() end -- Micro stutter for realism
+            if SafeRandom(1,100) > 90 then RunService.Heartbeat:Wait() end 
             vim:SendKeyEvent(false,code,false,game) 
         end
         task.wait(GetRandomTime(TYPING_SETTINGS.BaseSpeed))
@@ -210,101 +385,86 @@ end
 
 local function DoSearch()
     if isTyping then return end
-    local query = Sanitize(Input.Text):lower()
+    local query = Sanitize(InputBox.Text):lower()
     if query == "" then return end
     
-    Status.Text = "HUNTING..."
+    Status.Text = "SEARCHING..."
+    Status.TextColor3 = Colors.Accent
     
     task.spawn(function()
         local candidates = {}
-        local isTrap = TrapB.Text:find("ON")
-        local isFirst = FirstB.Text:find("ON")
+        local isTrap = TrapT.Text:find("ON")
+        local isFirst = FirstT.Text:find("ON")
         
-        -- 1. Gather Candidates (Yielding to prevent freeze)
+        -- Search Loop with Yielding
         local batch = 0
         for _, v in ipairs(ALL_WORDS) do
             batch = batch + 1
-            if batch % 5000 == 0 then RunService.Heartbeat:Wait() end -- Anti-Freeze
+            if batch % 2000 == 0 then RunService.Heartbeat:Wait() end 
             
             local w = Sanitize(v)
             local wLow = w:lower()
-            if #w >= 3 and not CheckHist(w) then
+            if #w >= 3 and not CheckHist(w) and not IsBlacklisted(w) then
                 local match = false
                 if isFirst then 
                     if wLow:sub(1, #query) == query then match = true end
                 else 
                     if wLow:find(query, 1, true) then match = true end 
                 end
-                
                 if match then table.insert(candidates, w) end
             end
         end
         
-        -- 2. Select Best Candidate (Mind Fucker Logic)
+        -- Selection Logic
         local found = nil
         if #candidates > 0 then
-            ShuffleTable(candidates) -- Randomize first
+            ShuffleTable(candidates)
             if isTrap then
                 local bestScore = -9999
-                -- We limit the search to 500 candidates to prevent freeze on common syllables like "ER"
-                local searchLimit = 500
+                local searchLimit = 300
                 local searched = 0
                 
                 for _, w in ipairs(candidates) do
                     searched = searched + 1
                     if searched > searchLimit then break end
-                    if searched % 50 == 0 then RunService.Heartbeat:Wait() end
+                    if searched % 30 == 0 then RunService.Heartbeat:Wait() end
                     
-                    -- SCORING SYSTEM
-                    -- Goal: Find word ending with hardest suffix
                     local score = 0
                     local suffix = w:sub(-2):lower()
                     local lastChar = w:sub(-1):lower()
                     
-                    -- Rarity Bonus
                     if string.find("jqxz", lastChar) then score = score + 50 end
-                    if string.find("kvwy", lastChar) then score = score + 20 end
-                    
-                    -- Length Bonus (Longer is usually more annoying)
                     score = score + #w
                     
-                    -- Dead End Bonus (Check if next word exists for them)
-                    -- We check if there are FEW words starting with this suffix
                     local replyCount = GetStartingCount(suffix)
-                    if replyCount == 0 then score = score + 1000 -- INSTANT KILL
+                    if replyCount == 0 then score = score + 1000 
                     elseif replyCount < 5 then score = score + 100
-                    elseif replyCount < 20 then score = score + 50
-                    else score = score - replyCount -- Penalize common endings
+                    else score = score - replyCount 
                     end
                     
-                    if score > bestScore then
-                        bestScore = score
-                        found = w
-                    end
+                    if score > bestScore then bestScore = score; found = w end
                 end
             else
-                -- Just pick a random long one for style if trap is off
                 found = candidates[1]
             end
-            
-            -- Fallback
             if not found then found = candidates[1] end
         end
         
         if found then
             lastFound = found
             AddHist(found)
-            Status.Text = "KILLING: " .. found:upper()
-            Input.Text = "" -- Auto clear
+            Status.Text = "TARGET: " .. found:upper()
+            Status.TextColor3 = Colors.Accent
+            InputBox.Text = "" 
             TypeWord(found)
         else
-            Status.Text = "NO AMMO FOUND."
+            Status.Text = "NO MATCH FOUND."
             Status.TextColor3 = Color3.fromRGB(255, 50, 50)
         end
     end)
 end
 
--- LOADING
+-- Init Dictionary
 task.spawn(function()
     local c = 0
     for _, url in ipairs(DictionaryURLs) do
@@ -316,19 +476,8 @@ task.spawn(function()
             end
         end
     end
-    Status.Text = "ARMED: " .. c .. " WORDS"
+    Status.Text = "SYSTEM READY: " .. c .. " WORDS"
 end)
 
--- CONNECT
-FirstB.MouseButton1Click:Connect(function() 
-    local on = FirstB.Text:find("OFF")
-    FirstB.Text = on and "First: ON" or "First: OFF"
-end)
-TrapB.MouseButton1Click:Connect(function() 
-    local on = TrapB.Text:find("OFF")
-    TrapB.Text = on and "Trap: ON" or "Trap: OFF"
-end)
-ResetB.MouseButton1Click:Connect(function() GlobalEnv._UPB_History={}; Status.Text="MEMORY WIPED" end)
-ClearB.MouseButton1Click:Connect(function() Input.Text="" end)
-RunBtn.MouseButton1Click:Connect(DoSearch)
-Input.FocusLost:Connect(function(e) if e then DoSearch() end end)
+KillBtn.MouseButton1Click:Connect(DoSearch)
+InputBox.FocusLost:Connect(function(e) if e then DoSearch() end end)
