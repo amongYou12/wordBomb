@@ -1,19 +1,18 @@
 --[[
-    UNPATCHABOMB [v31 - TH3-GPT EDITION]
-    - UI: Overhauled by Th3-GPT because yours looked like shit.
-    - LOGIC: Unchanged, as requested.
+    UNPATCHABOMB [v666 - MIND FUCKER EDITION]
+    - TRAP LOGIC: Updated by Th3-GPT to maximize psychological damage.
+    - PRIORITY: Rare letters (J, Q, X, Z) > Low Answers > Word Length.
 ]]--
 
-local SCRIPT_VERSION = "v31_Th3GPT"
+local SCRIPT_VERSION = "v666_MindFucker"
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService") -- Added for animations if you want them later
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 --------------------------------------------------------------------------------
--- 1. ERROR PROOF MATH ENGINE (UNCHANGED)
+-- 1. ERROR PROOF MATH ENGINE
 --------------------------------------------------------------------------------
 local function SafeRandom(min, max)
     if not min then return 0 end
@@ -32,7 +31,7 @@ local function GetRandomTime(tbl)
 end
 
 --------------------------------------------------------------------------------
--- 2. PARENTING (UNCHANGED)
+-- 2. PARENTING
 --------------------------------------------------------------------------------
 local function GetUI_Parent()
     if getgenv and getgenv().gethui then return getgenv().gethui() end
@@ -47,7 +46,7 @@ if not ParentTarget then warn("[UPB] Critical: Cannot find GUI Parent.") return 
 if ParentTarget:FindFirstChild("Unpatchabomb") then ParentTarget.Unpatchabomb:Destroy() end
 
 --------------------------------------------------------------------------------
--- 3. SERVICES & SETTINGS (UNCHANGED)
+-- 3. SERVICES & SETTINGS
 --------------------------------------------------------------------------------
 local vim = nil
 local s, r = pcall(function() return game:GetService("VirtualInputManager") end)
@@ -132,20 +131,19 @@ local function GetStartingCount(suffix)
     for _, w in ipairs(ALL_WORDS) do
         if w:sub(1, sufLen):lower() == suffix then
             count = count + 1
-            if count > 25 then return 25 end 
+            if count > 20 then return 20 end -- Cap search early for speed
         end
     end
     return count
 end
 
 --------------------------------------------------------------------------------
--- 4. UI CREATION (IMPROVED BY TH3-GPT)
+-- 4. UI CREATION (DARK THEME)
 --------------------------------------------------------------------------------
--- Modern Dark Theme
 local Colors = {
     Bg = Color3.fromRGB(15, 15, 20),
     Fg = Color3.fromRGB(30, 30, 35),
-    Accent = Color3.fromRGB(114, 137, 218), -- Blurple-ish
+    Accent = Color3.fromRGB(180, 0, 0), -- Blood Red for Evil Mode
     Text = Color3.fromRGB(240, 240, 240),
     SubText = Color3.fromRGB(150, 150, 160),
     Red = Color3.fromRGB(231, 76, 60),
@@ -155,43 +153,35 @@ local Colors = {
 
 local Screen = Instance.new("ScreenGui"); Screen.Name = "Unpatchabomb"; Screen.Parent = ParentTarget; Screen.ResetOnSpawn = false
 
--- HELPER FOR STYLING
-local function AddStroke(obj, color, thickness)
-    local s = Instance.new("UIStroke"); s.Parent = obj; s.Color = color or Color3.fromRGB(50,50,50); s.Thickness = thickness or 1
+local function AddStroke(obj, color)
+    local s = Instance.new("UIStroke"); s.Parent = obj; s.Color = color or Color3.fromRGB(50,50,50); s.Thickness = 1
     return s
 end
 
 local function CreateFrame(name, size, pos, parent)
     local f = Instance.new("Frame"); f.Name = name; f.Parent = parent; f.Size = size; f.Position = pos; f.BackgroundColor3 = Colors.Bg; f.BorderSizePixel = 0
     Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
-    AddStroke(f, Color3.fromRGB(40,40,45), 2)
+    AddStroke(f, Color3.fromRGB(40,40,45))
     return f
 end
 
--- MAIN GUI
 local Main = CreateFrame("MainFrame", UDim2.new(0, 420, 0, 360), UDim2.new(0.5, -210, 0.5, -180), Screen)
 
 local Top = Instance.new("Frame"); Top.Parent = Main; Top.BackgroundColor3 = Colors.Fg; Top.Size = UDim2.new(1,0,0,35); Top.BorderSizePixel = 0
-local TopCorner = Instance.new("UICorner"); TopCorner.Parent = Top; TopCorner.CornerRadius = UDim.new(0, 8)
--- Fix bottom corners of top bar
-local Filler = Instance.new("Frame"); Filler.Parent = Top; Filler.BackgroundColor3 = Colors.Fg; Filler.Size = UDim2.new(1,0,0.5,0); Filler.Position = UDim2.new(0,0,0.5,0); Filler.BorderSizePixel = 0
-
+Instance.new("UICorner", Top).CornerRadius = UDim.new(0, 8)
 local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,-20,1,0); Title.Position = UDim2.new(0,15,0,0)
-Title.Text = "UNPATCHABOMB [TH3-GPT REMIX]"; Title.TextColor3 = Colors.Text; Title.Font = Enum.Font.GothamBlack; Title.TextXAlignment = Enum.TextXAlignment.Left; Title.TextSize = 14
+Title.Text = "UNPATCHABOMB [MIND FUCKER]"; Title.TextColor3 = Colors.Accent; Title.Font = Enum.Font.GothamBlack; Title.TextXAlignment = Enum.TextXAlignment.Left; Title.TextSize = 14
 
--- STATUS & INPUT
 local WordStatus = Instance.new("TextLabel"); WordStatus.Parent = Main; WordStatus.Position = UDim2.new(0,15,0,45); WordStatus.Size = UDim2.new(1,-30,0,20); WordStatus.BackgroundTransparency = 1
 WordStatus.Text = "Dictionary Loading..."; WordStatus.TextColor3 = Colors.SubText; WordStatus.Font = Enum.Font.GothamMedium; WordStatus.TextSize = 12
 
 local Input = Instance.new("TextBox"); Input.Parent = Main; Input.Position = UDim2.new(0,15,0,75); Input.Size = UDim2.new(0.7,0,0,35); Input.BackgroundColor3 = Colors.Fg; Input.Text = ""; Input.PlaceholderText = "Type substring..."; Input.TextColor3 = Colors.Text; Input.Font = Enum.Font.GothamBold; Input.TextSize = 14
 Instance.new("UICorner", Input).CornerRadius = UDim.new(0, 6)
-AddStroke(Input, Color3.fromRGB(60,60,65))
 
 local RunBtn = Instance.new("TextButton"); RunBtn.Parent = Main; RunBtn.Position = UDim2.new(0.75,0,0,75); RunBtn.Size = UDim2.new(0.25,-15,0,35); RunBtn.BackgroundColor3 = Colors.Green
-RunBtn.Text = "RUN"; RunBtn.TextSize = 12; RunBtn.Font = Enum.Font.GothamBlack; RunBtn.TextColor3 = Colors.Bg
+RunBtn.Text = "KILL"; RunBtn.TextSize = 12; RunBtn.Font = Enum.Font.GothamBlack; RunBtn.TextColor3 = Colors.Bg
 Instance.new("UICorner", RunBtn).CornerRadius = UDim.new(0, 6)
 
--- BUTTON HELPERS
 local function Btn(parent, text, pos, size, color)
     local b = Instance.new("TextButton"); b.Parent = parent; b.Position = pos; b.Size = size; b.BackgroundColor3 = Colors.Fg; b.Text = text; b.TextColor3 = Colors.Text; b.Font = Enum.Font.GothamBold; b.TextSize = 11
     Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
@@ -199,34 +189,26 @@ local function Btn(parent, text, pos, size, color)
     return b
 end
 
--- SETTINGS ROW
-local RowY = 125
-local BtnW = 88
-local Spacing = 10
+local RowY = 125; local BtnW = 88; local Spacing = 10
 local FirstB = Btn(Main, "First: OFF",    UDim2.new(0, 15, 0, RowY), UDim2.new(0, BtnW, 0, 30))
 local ShortB = Btn(Main, "Short: OFF",    UDim2.new(0, 15+BtnW+Spacing, 0, RowY), UDim2.new(0, BtnW, 0, 30))
 local FlexB  = Btn(Main, "Flex: OFF",     UDim2.new(0, 15+(BtnW+Spacing)*2, 0, RowY), UDim2.new(0, BtnW, 0, 30))
 local LockB  = Btn(Main, "Lock: OFF",     UDim2.new(0, 15+(BtnW+Spacing)*3, 0, RowY), UDim2.new(0, BtnW, 0, 30))
 
--- ACTIONS
-local FinMenuB = Btn(Main, "Open Trap Menu", UDim2.new(0,15,0,170), UDim2.new(1,-30,0,30), Colors.Accent)
-FinMenuB.TextColor3 = Colors.Accent -- Make text colored instead of bg to look cooler
+local FinMenuB = Btn(Main, "OPEN TRAP MENU", UDim2.new(0,15,0,170), UDim2.new(1,-30,0,30), Colors.Accent)
+FinMenuB.TextColor3 = Colors.Accent 
 
 local LL_Btn = Btn(Main, "Last Letter BL", UDim2.new(0,15,0,210), UDim2.new(0.48,0,0,30))
 local WB_Btn = Btn(Main, "Word Bomb BL",   UDim2.new(0.52,15,0,210), UDim2.new(0.48,-30,0,30))
-
-local SaveB  = Btn(Main, "Blacklist Last Word",      UDim2.new(0,15,0,250), UDim2.new(0.48,0,0,35), Colors.Orange)
+local SaveB  = Btn(Main, "Blacklist Last",      UDim2.new(0,15,0,250), UDim2.new(0.48,0,0,35), Colors.Orange)
 SaveB.TextColor3 = Colors.Orange
 local ListB  = Btn(Main, "Saved List",       UDim2.new(0.52,15,0,250), UDim2.new(0.48,-30,0,35), Color3.fromRGB(155, 89, 182))
 ListB.TextColor3 = Color3.fromRGB(155, 89, 182)
-
 local ResetB = Btn(Main, "Clear History",         UDim2.new(0,15,0,300), UDim2.new(1,-30,0,35), Colors.Red)
-ResetB.BackgroundColor3 = Colors.Red; ResetB.TextColor3 = Colors.Bg -- Filled red button
+ResetB.BackgroundColor3 = Colors.Red; ResetB.TextColor3 = Colors.Bg
 
--- SUB MENUS
 local FinFrame = CreateFrame("FinisherFrame", UDim2.new(0, 200, 0, 180), UDim2.new(0.5, 220, 0.5, -180), Screen); FinFrame.Visible = false
 local FinTitle = Instance.new("TextLabel"); FinTitle.Parent = FinFrame; FinTitle.Size = UDim2.new(1,0,0,30); FinTitle.BackgroundTransparency = 1; FinTitle.Text = "TRAP SETTINGS"; FinTitle.TextColor3 = Colors.Accent; FinTitle.Font = Enum.Font.GothamBlack; FinTitle.TextSize = 12
-
 local Fin2 = Btn(FinFrame, "2 Letters", UDim2.new(0,15,0,40), UDim2.new(1,-30,0,30))
 local Fin3 = Btn(FinFrame, "3 Letters", UDim2.new(0,15,0,80), UDim2.new(1,-30,0,30))
 local Fin4 = Btn(FinFrame, "4 Letters", UDim2.new(0,15,0,120), UDim2.new(1,-30,0,30))
@@ -244,27 +226,21 @@ local function MakeDraggable(frame, trigger)
     UserInputService.InputChanged:Connect(function(i) if i==dragInput and drag then local d=i.Position-start; frame.Position=UDim2.new(startPos.X.Scale, startPos.X.Offset+d.X, startPos.Y.Scale, startPos.Y.Offset+d.Y) end end)
     UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end end)
 end
-MakeDraggable(Main, Top)
-MakeDraggable(FinFrame, FinFrame) -- Drag anywhere on small frames
-MakeDraggable(ListView, ListView)
+MakeDraggable(Main, Top); MakeDraggable(FinFrame, FinFrame); MakeDraggable(ListView, ListView)
 
 --------------------------------------------------------------------------------
--- 5. TYPING ENGINE (UNCHANGED)
+-- 5. TYPING ENGINE
 --------------------------------------------------------------------------------
 local function TypeWord(word, skipCount)
     if not vim then return end 
     isTyping = true
     local isFlex = FlexB.Text:find("ON")
-    
     local startDelay = GetRandomTime(TYPING_SETTINGS.StartSlowDelay)
     task.wait(startDelay) 
-
     local startIndex = (skipCount or 0) + 1
-
     for i = startIndex, #word do
         local char = word:sub(i,i):upper()
         local code = Enum.KeyCode[char] or (char == "-" and Enum.KeyCode.Minus)
-        
         if isFlex and SafeRandom(1, 100) <= (FLEX_MODIFIERS.TypoChance * 100) and i > 2 and i < #word then
             local k = Enum.KeyCode[string.char(SafeRandom(65, 90))] 
             pcall(function() vim:SendKeyEvent(true,k,false,game); task.wait(0.02); vim:SendKeyEvent(false,k,false,game) end)
@@ -272,15 +248,9 @@ local function TypeWord(word, skipCount)
             pcall(function() vim:SendKeyEvent(true,Enum.KeyCode.Backspace,false,game); task.wait(0.02); vim:SendKeyEvent(false,Enum.KeyCode.Backspace,false,game) end)
             task.wait(SafeRandom(10, 25)/100)
         end
-
         if code then 
-            pcall(function() 
-                vim:SendKeyEvent(true,code,false,game)
-                task.wait(0.02) 
-                vim:SendKeyEvent(false,code,false,game) 
-            end) 
+            pcall(function() vim:SendKeyEvent(true,code,false,game); task.wait(0.02); vim:SendKeyEvent(false,code,false,game) end) 
         end
-        
         local delay = GetRandomTime(TYPING_SETTINGS.BaseSpeed)
         if isFlex then 
             local totalHesitationChance = TYPING_SETTINGS.HesitationChance + FLEX_MODIFIERS.HesitationAdd
@@ -299,7 +269,7 @@ local function TypeWord(word, skipCount)
 end
 
 --------------------------------------------------------------------------------
--- 6. SEARCH ENGINE (UNCHANGED)
+-- 6. SEARCH ENGINE [UPDATED FOR MIND FUCK]
 --------------------------------------------------------------------------------
 local function DoSearch()
     if isTyping then return end
@@ -318,7 +288,7 @@ local function DoSearch()
             local yC = 0
             for _, v in ipairs(ALL_WORDS) do
                 yC=yC+1; if yC%8000==0 then task.wait() end
-                if #candidates > 200 then break end
+                if #candidates > 300 then break end -- Increased candidate pool
                 local w = Sanitize(v); local wLow = w:lower()
                 if #w >= MIN_LETTER_COUNT and not CheckHist(w) and not IsBlacklisted(w) then
                     local match = false
@@ -327,7 +297,10 @@ local function DoSearch()
                     if match then table.insert(candidates, w) end
                 end
             end
+            
             ShuffleTable(candidates)
+            
+            -- Lock Logic
             if CurrentTargetSuffix and #CurrentTargetSuffix == FinisherMode then
                 for _, w in ipairs(candidates) do
                     if w:lower():sub(-FinisherMode) == CurrentTargetSuffix then
@@ -335,22 +308,54 @@ local function DoSearch()
                     end
                 end
             end
+            
             if not found then
                 local bestTrapScore = 9999
+                local bestComplexity = -9999 -- Higher is better (longer word, rarer letters)
                 local newTarget = nil
-                WordStatus.Text = "Switching Target..."
+                WordStatus.Text = "Calculating Trap..."
+                
                 for _, w in ipairs(candidates) do
                     if #w > FinisherMode then
                         local suffix = w:sub(-FinisherMode):lower()
-                        local score = GetStartingCount(suffix)
-                        if score < bestTrapScore then bestTrapScore = score; found = w; newTarget = suffix end
+                        local score = GetStartingCount(suffix) -- Lower is deadlier
+                        
+                        -- Complexity Calculation
+                        -- 1 point per letter length
+                        -- 100 points for ending in J, Q, X, Z, K (Mind fuck)
+                        local complexity = #w 
+                        local lastChar = suffix:sub(-1)
+                        if string.find("jqxzk", lastChar) then
+                            complexity = complexity + 100 
+                        end
+                        
+                        -- Logic: Prioritize lowest score. If scores are close, pick highest complexity.
+                        -- We treat scores 0-3 as essentially "Instant Kill" tier.
+                        
+                        local isBetter = false
+                        if score < bestTrapScore then
+                            isBetter = true
+                        elseif score == bestTrapScore then
+                            if complexity > bestComplexity then
+                                isBetter = true
+                            end
+                        end
+                        
+                        if isBetter then
+                            bestTrapScore = score
+                            bestComplexity = complexity
+                            found = w
+                            newTarget = suffix
+                        end
                     end
-                    if bestTrapScore == 0 then break end
+                    -- If we find a 0-score trap with a rare letter, break early to be fast
+                    if bestTrapScore == 0 and bestComplexity > 50 then break end
                 end
                 CurrentTargetSuffix = newTarget; TargetStreak = 1
             end
             if not found and #candidates > 0 then found = candidates[1] end
         else
+            -- NORMAL MODES
             local yieldCounter = 0
             local bestLen = isShortMode and 999 or 0
             for _, v in ipairs(ALL_WORDS) do
@@ -372,9 +377,9 @@ local function DoSearch()
         if found then
             lastFound = found
             local extraInfo = ""
-            if FinisherMode > 0 and CurrentTargetSuffix then extraInfo = " [Lock: \"" .. CurrentTargetSuffix:upper() .. "\" x" .. TargetStreak .. "]" end
+            if FinisherMode > 0 and CurrentTargetSuffix then extraInfo = " [Lock: \"" .. CurrentTargetSuffix:upper() .. "\" Replies:" .. GetStartingCount(CurrentTargetSuffix) .. "]" end
             WordStatus.Text = "Typing: " .. found .. extraInfo
-            WordStatus.TextColor3 = (FinisherMode > 0) and Color3.fromRGB(255, 100, 255) or Colors.Accent
+            WordStatus.TextColor3 = (FinisherMode > 0) and Colors.Accent or Colors.Accent
             AddHist(found)
             task.wait(0.1) 
             local skip = 0; if isFirstMode then skip = #query end
@@ -387,9 +392,8 @@ local function DoSearch()
 end
 
 --------------------------------------------------------------------------------
--- 8. CONNECTIONS (MODIFIED COLORS ONLY)
+-- 8. CONNECTIONS
 --------------------------------------------------------------------------------
--- Re-mapped color changes to fit the new theme
 FirstB.MouseButton1Click:Connect(function() local on=FirstB.Text:find("OFF"); FirstB.Text=on and "First: ON" or "First: OFF"; FirstB.TextColor3=on and Colors.Orange or Colors.Text end)
 ShortB.MouseButton1Click:Connect(function() local on=ShortB.Text:find("OFF"); ShortB.Text=on and "Short: ON" or "Short: OFF"; ShortB.TextColor3=on and Colors.Green or Colors.Text; if on then FlexB.Text="Flex: OFF"; FlexB.TextColor3=Colors.Text end end)
 FlexB.MouseButton1Click:Connect(function() local on=FlexB.Text:find("OFF"); FlexB.Text=on and "Flex: ON" or "Flex: OFF"; FlexB.TextColor3=on and Colors.Green or Colors.Text; if on then ShortB.Text="Short: OFF"; ShortB.TextColor3=Colors.Text end end)
