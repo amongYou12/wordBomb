@@ -30,7 +30,7 @@ local TYPING_SETTINGS = {
 }
 
 local FLEX_MODIFIERS = {
-    SpeedAdder = 0.025,        -- Adds 45ms (Makes it slower overall)
+    SpeedAdder = 0.0125,        -- Adds 45ms (Makes it slower overall)
     BurstChance = 0.40,        -- 30% chance to "speed up" for a letter (The Burst)
     BurstReduction = 0.050,    -- Removes 50ms during a burst (Fast!)
     TypoChance = 0.10,         -- 4% chance per letter to mess up
