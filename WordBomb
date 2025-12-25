@@ -57,10 +57,10 @@ local TYPING_SETTINGS = {
 
 local FLEX_MODIFIERS = {
     SpeedAdder = 0.015,
-    BurstChance = 0.40,        -- High chance to burst on common clusters
-    BurstReduction = 0.045,    -- Significant speed up during burst
+    BurstChance = 0.20,        -- High chance to burst on common clusters
+    BurstReduction = 0.035,    -- Significant speed up during burst
     TypoChance = 0.06,         -- Rare but realistic typos
-    HesitationAdd = 0.015
+    HesitationAdd = 0.025
 }
 local LOCK_IN_SPEED_BOOST = 0.045 
 
