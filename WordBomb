@@ -1,43 +1,40 @@
-local SCRIPT_VERSION = "v23_Compatibility"
+--[[
+    UNPATCHABOMB [v25 - DEAD END EDITION]
+    - NEW: "Dead End" Logic. Prioritizes endings with 0 replies.
+    - NEW: Candidate Shuffling. Finds "Killer Words" much faster.
+    - INFO: Displays how many replies the opponent has (e.g. [Trap: 0]).
+]]--
+
+local SCRIPT_VERSION = "v25_DeadEnd"
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
 
 -- 1. WAIT FOR GAME
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- 2. SAFE SERVICE CHECK (VirtualInputManager)
-local vim = nil
-local success, result = pcall(function() return game:GetService("VirtualInputManager") end)
-if success and result then
-    vim = result
-else
-    warn("[UPB] Warning: Your executor does not support VirtualInputManager. Auto-type may fail.")
-end
-
--- 3. PARENTING FIX (PlayerGui Default)
+--------------------------------------------------------------------------------
+-- 2. CLEANUP & PARENTING
+--------------------------------------------------------------------------------
 local function GetUI_Parent()
+    if getgenv and getgenv().gethui then return getgenv().gethui() end
+    if CoreGui then return CoreGui end
     local lp = Players.LocalPlayer
-    if lp and lp:FindFirstChild("PlayerGui") then
-        return lp.PlayerGui
-    end
-    -- Fallback to CoreGui only if PlayerGui is missing (Rare)
-    if game:GetService("CoreGui") then return game:GetService("CoreGui") end
+    if lp then return lp:WaitForChild("PlayerGui") end
     return nil
 end
 
 local ParentTarget = GetUI_Parent()
-if not ParentTarget then 
-    warn("[UPB] Critical: Cannot find GUI Parent.") 
-    return 
-end
-
--- CLEANUP OLD UI
+if not ParentTarget then warn("[UPB] Critical: Cannot find GUI Parent.") return end
 if ParentTarget:FindFirstChild("Unpatchabomb") then ParentTarget.Unpatchabomb:Destroy() end
 
 --------------------------------------------------------------------------------
--- 4. CONFIGURATION & URLS
+-- 3. SERVICES & SETTINGS
 --------------------------------------------------------------------------------
+local vim = nil
+local s, r = pcall(function() return game:GetService("VirtualInputManager") end)
+if s then vim = r end
+
 local MIN_LETTER_COUNT = 4
 
 local DictionaryURLs = {
@@ -60,13 +57,13 @@ local TYPING_SETTINGS = {
 local FLEX_MODIFIERS = {
     SpeedAdder = 0.0055,
     BurstChance = 0.20,
-    BurstReduction = 0.050,
-    TypoChance = 0.05,
-    HesitationAdd = 0.005
+    BurstReduction = 0.030,
+    TypoChance = 0.08,
+    HesitationAdd = 0.015
 }
 local LOCK_IN_SPEED_BOOST = 0.040 
 
--- VARIABLES
+-- DATA
 local LL_Enabled, WB_Enabled = false, false
 local LL_Table, WB_Table = {}, {}
 local ALL_WORDS, SAVED_LIST_UI = {}, {}
@@ -74,7 +71,6 @@ local SESSION_BLACKLIST = {}
 local isTyping, lastFound, isLockIn = false, "", false
 local FinisherMode = 0 
 
--- INTERNAL STORAGE
 local GlobalEnv = (getgenv and getgenv()) or _G
 if not GlobalEnv._UPB_History then GlobalEnv._UPB_History = {} end
 
@@ -83,6 +79,13 @@ local function CheckHist(w) return GlobalEnv._UPB_History[w:lower()] end
 local function AddHist(w) GlobalEnv._UPB_History[w:lower()] = true end
 local function Sanitize(s) return s:gsub("%s+", ""):gsub("[^a-zA-Z0-9%-]", "") end
 local function GetRandomTime(tbl) return (math.random(tbl[1]*1000, tbl[2]*1000) / 1000) end
+
+local function ShuffleTable(t)
+    for i = #t, 2, -1 do
+        local j = math.random(i)
+        t[i], t[j] = t[j], t[i]
+    end
+end
 
 local function FetchBlacklist(url, target)
     local s, content = pcall(function() return game:HttpGet(url) end)
@@ -111,25 +114,25 @@ local function GetStartingCount(suffix)
     for _, w in ipairs(ALL_WORDS) do
         if w:sub(1, sufLen):lower() == suffix then
             count = count + 1
-            if count > 50 then return 50 end
+            if count > 20 then return 20 end -- Cap at 20 for speed (anything > 0 is bad)
         end
     end
     return count
 end
 
 --------------------------------------------------------------------------------
--- 5. UI CREATION
+-- 4. UI CREATION
 --------------------------------------------------------------------------------
 local Screen = Instance.new("ScreenGui"); Screen.Name = "Unpatchabomb"; Screen.Parent = ParentTarget; Screen.ResetOnSpawn = false
 
--- MAIN FRAME
+-- MAIN
 local Main = Instance.new("Frame"); Main.Parent = Screen; Main.BackgroundColor3 = Color3.fromRGB(20,20,20); Main.Size = UDim2.new(0, 400, 0, 340); Main.Position = UDim2.new(0.5, -200, 0.5, -170); Main.BorderSizePixel = 0
 local Corner = Instance.new("UICorner"); Corner.Parent = Main
 local Top = Instance.new("Frame"); Top.Parent = Main; Top.BackgroundColor3 = Color3.fromRGB(30,30,30); Top.Size = UDim2.new(1,0,0,35)
 local TopCorner = Instance.new("UICorner"); TopCorner.Parent = Top
-local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v23 [COMPATIBILITY]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = Enum.Font.GothamBold; Title.TextXAlignment = Enum.TextXAlignment.Left; Title.TextSize = 14
+local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v25 [DEAD END]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = Enum.Font.GothamBold; Title.TextXAlignment = Enum.TextXAlignment.Left; Title.TextSize = 14
 
--- TRAP FRAME
+-- TRAP TAB
 local FinFrame = Instance.new("Frame"); FinFrame.Name = "FinisherFrame"; FinFrame.Parent = Screen; FinFrame.BackgroundColor3 = Color3.fromRGB(25,25,25); FinFrame.Size = UDim2.new(0, 200, 0, 180); FinFrame.Position = UDim2.new(0.5, 210, 0.5, -170); FinFrame.Visible = false
 Instance.new("UICorner", FinFrame)
 local FinTop = Instance.new("Frame"); FinTop.Parent = FinFrame; FinTop.BackgroundColor3 = Color3.fromRGB(35,35,35); FinTop.Size = UDim2.new(1,0,0,30)
@@ -170,7 +173,6 @@ local Fin3 = Btn(FinFrame, "3 Letters (Trap)", UDim2.new(0.1,0,0.45,0), UDim2.ne
 local Fin4 = Btn(FinFrame, "4 Letters (Trap)", UDim2.new(0.1,0,0.65,0), UDim2.new(0.8,0,0.15,0), Color3.fromRGB(50,50,50))
 local FinStatus = Instance.new("TextLabel"); FinStatus.Parent = FinFrame; FinStatus.Position = UDim2.new(0,0,0.85,0); FinStatus.Size = UDim2.new(1,0,0.1,0); FinStatus.BackgroundTransparency = 1; FinStatus.TextColor3 = Color3.fromRGB(200,200,200); FinStatus.Text = "Mode: OFF"; FinStatus.Font = Enum.Font.GothamBold; FinStatus.TextSize=10
 
--- DRAGGING
 local function MakeDraggable(frame, trigger)
     local drag, start, startPos
     trigger.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=true; start=i.Position; startPos=frame.Position end end)
@@ -182,10 +184,10 @@ MakeDraggable(Main, Top)
 MakeDraggable(FinFrame, FinTop)
 
 --------------------------------------------------------------------------------
--- 6. TYPING LOGIC
+-- 5. TYPING ENGINE
 --------------------------------------------------------------------------------
 local function TypeWord(word, skipCount)
-    if not vim then return end -- Safety check
+    if not vim then return end 
     isTyping = true
     local isFlex = FlexB.Text:find("ON")
     local startDelay = GetRandomTime(TYPING_SETTINGS.StartSlowDelay)
@@ -213,7 +215,7 @@ local function TypeWord(word, skipCount)
 end
 
 --------------------------------------------------------------------------------
--- 7. SEARCH ENGINE
+-- 6. SEARCH ENGINE (DEAD END LOGIC)
 --------------------------------------------------------------------------------
 local function DoSearch()
     if isTyping then return end
@@ -227,14 +229,20 @@ local function DoSearch()
 
     task.spawn(function()
         local found = nil
+        local finalTrapScore = -1
         
-        -- TRAP MODE
+        -- TRAP MODE (DEAD END LOGIC)
         if FinisherMode > 0 then
             local candidates = {}
             local yC = 0
+            
+            -- 1. Gather all candidates
             for _, v in ipairs(ALL_WORDS) do
-                yC=yC+1; if yC%5000==0 then task.wait() end
-                if #candidates > 50 then break end
+                yC=yC+1; if yC%8000==0 then task.wait() end
+                
+                -- Cap candidates at 100 for performance, but SHUFFLE later to ensure variety
+                if #candidates > 100 then break end
+                
                 local w = Sanitize(v); local wLow = w:lower()
                 if #w >= MIN_LETTER_COUNT and not CheckHist(w) and not IsBlacklisted(w) then
                     local match = false
@@ -243,15 +251,29 @@ local function DoSearch()
                     if match then table.insert(candidates, w) end
                 end
             end
+            
+            -- 2. SHUFFLE Candidates to avoid "ING" clumps
+            ShuffleTable(candidates)
+            
+            -- 3. Find the DEAD END
             local bestTrapScore = 9999
+            WordStatus.Text = "Calculating Trap..."
+            
             for _, w in ipairs(candidates) do
                 if #w > FinisherMode then
                     local suffix = w:sub(-FinisherMode):lower()
                     local score = GetStartingCount(suffix)
-                    if score < bestTrapScore then bestTrapScore = score; found = w end
+                    
+                    if score < bestTrapScore then
+                        bestTrapScore = score
+                        found = w
+                        finalTrapScore = score
+                    end
                 end
-                if bestTrapScore == 0 then break end
+                if bestTrapScore == 0 then break end -- Instant Kill found
             end
+            
+            -- Fallback
             if not found and #candidates > 0 then found = candidates[1] end
 
         -- FLEX / SHORT / NORMAL
@@ -277,8 +299,13 @@ local function DoSearch()
         
         if found then
             lastFound = found
-            WordStatus.Text = "Typing: " .. found
-            WordStatus.TextColor3 = Color3.fromRGB(0, 200, 255)
+            -- VISUAL FEEDBACK
+            local extraInfo = ""
+            if FinisherMode > 0 then extraInfo = " [Trap: " .. finalTrapScore .. " replies]" end
+            
+            WordStatus.Text = "Typing: " .. found .. extraInfo
+            WordStatus.TextColor3 = (finalTrapScore == 0) and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(0, 200, 255)
+            
             AddHist(found)
             task.wait(0.1) 
             local skip = 0; if isFirstMode then skip = #query end
@@ -291,7 +318,7 @@ local function DoSearch()
 end
 
 --------------------------------------------------------------------------------
--- 8. CONNECTIONS
+-- 7. BUTTONS & INIT
 --------------------------------------------------------------------------------
 FirstB.MouseButton1Click:Connect(function() local on=FirstB.Text:find("OFF"); FirstB.Text=on and "First: ON" or "First: OFF"; FirstB.BackgroundColor3=on and Color3.fromRGB(230,126,34) or Color3.fromRGB(50,50,50) end)
 ShortB.MouseButton1Click:Connect(function() local on=ShortB.Text:find("OFF"); ShortB.Text=on and "Short: ON" or "Short: OFF"; ShortB.BackgroundColor3=on and Color3.fromRGB(241,196,15) or Color3.fromRGB(50,50,50); if on then FlexB.Text="Flex: OFF"; FlexB.BackgroundColor3=Color3.fromRGB(50,50,50) end end)
