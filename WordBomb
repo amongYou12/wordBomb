@@ -1,9 +1,7 @@
 --[[
-    UNPATCHABOMB [v14 - STABLE & FIXED]
-    - FIXED: GUI not appearing (Cleaned up syntax errors).
-    - FEATURE: Smart Input (Skips typed letters in First Mode).
-    - FEATURE: Human Flex Typing (Typos, bursts, hesitation).
-    - FEATURE: Session Blacklist (Prevents repeating words).
+    UNPATCHABOMB [v14.5 - TEXT BLACKLIST FIX]
+    - FIXED: Now reads raw .txt files correctly (Fixes your blacklist issue).
+    - INCLUDED: Smart Input, Human Flex, Session Blacklist.
 ]]--
 
 --------------------------------------------------------------------------------
@@ -11,9 +9,10 @@
 --------------------------------------------------------------------------------
 local MIN_LETTER_COUNT = 4
 
--- URLs
+-- YOUR UPDATED BLACKLIST URLS
 local LL_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForLastLetter.txt"
 local WB_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForWordbomb.txt"
+
 local DictionaryURLs = {
     "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt",
     "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt",
@@ -30,11 +29,11 @@ local TYPING_SETTINGS = {
 }
 
 local FLEX_MODIFIERS = {
-    SpeedAdder = 0.0125,        -- Adds 45ms (Makes it slower overall)
-    BurstChance = 0.40,        -- 30% chance to "speed up" for a letter (The Burst)
-    BurstReduction = 0.050,    -- Removes 50ms during a burst (Fast!)
-    TypoChance = 0.10,         -- 4% chance per letter to mess up
-    HesitationAdd = 0.15       -- Adds 15% more hesitation chance
+    SpeedAdder = 0.0125,
+    BurstChance = 0.40,
+    BurstReduction = 0.050,
+    TypoChance = 0.10,
+    HesitationAdd = 0.15
 }
 
 local LOCK_IN_SPEED_BOOST = 0.040 
@@ -61,17 +60,26 @@ local function CheckHist(w) return GlobalEnv._UPB_History[w:lower()] end
 local function AddHist(w) GlobalEnv._UPB_History[w:lower()] = true end
 local function Sanitize(s) return s:gsub("%s+", ""):gsub("[^a-zA-Z0-9%-]", "") end
 
+-- [[ FIXED BLACKLIST FETCHER ]] --
 local function FetchBlacklist(url, target)
+    print("Attempting to download blacklist...")
     local s, content = pcall(function() return game:HttpGet(url) end)
+    
     if s then
-        local func = loadstring(content)
-        if func then
-            local data = func()
-            if type(data) == "table" then
-                for _, word in ipairs(data) do target[word:lower()] = true end
-                return true
+        local addedCount = 0
+        -- Read the file line by line (Works for .txt files)
+        for line in content:gmatch("[^\r\n]+") do
+            -- Clean up spaces around the word
+            local cleanWord = line:match("^%s*(.-)%s*$")
+            if cleanWord and cleanWord ~= "" then
+                target[cleanWord:lower()] = true
+                addedCount = addedCount + 1
             end
         end
+        print("Success! Added " .. addedCount .. " words to blacklist.")
+        return true
+    else
+        warn("Failed to download blacklist URL!")
     end
     return false
 end
@@ -101,7 +109,7 @@ local Corner = Instance.new("UICorner"); Corner.Parent = Main
 
 local Top = Instance.new("Frame"); Top.Parent = Main; Top.BackgroundColor3 = Color3.fromRGB(30,30,30); Top.Size = UDim2.new(1,0,0,35)
 local TopCorner = Instance.new("UICorner"); TopCorner.Parent = Top
-local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v14 [STABLE]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = Enum.Font.GothamBold; Title.TextXAlignment = Enum.TextXAlignment.Left; Title.TextSize = 14
+local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v14.5 [TXT FIX]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = Enum.Font.GothamBold; Title.TextXAlignment = Enum.TextXAlignment.Left; Title.TextSize = 14
 
 local WordStatus = Instance.new("TextLabel"); WordStatus.Parent = Main; WordStatus.Position = UDim2.new(0,0,0.11,0); WordStatus.Size = UDim2.new(1,0,0.08,0); WordStatus.BackgroundTransparency = 1; WordStatus.Text = "Dictionary Loading..."; WordStatus.TextColor3 = Color3.fromRGB(200,200,200); WordStatus.Font = Enum.Font.GothamMedium; WordStatus.TextSize = 13
 
@@ -148,19 +156,16 @@ local function TypeWord(word, skipCount)
     isTyping = true
     local isFlex = FlexB.Text:find("ON")
     
-    -- Initial hesitation
     local startDelay = GetRandomTime(TYPING_SETTINGS.StartSlowDelay)
     if isFlex then startDelay = startDelay + 0.05 end 
     task.wait(startDelay) 
 
-    -- SMART SKIP: Start typing from skipCount + 1
     local startIndex = (skipCount or 0) + 1
 
     for i = startIndex, #word do
         local char = word:sub(i,i):upper()
         local code = Enum.KeyCode[char] or (char == "-" and Enum.KeyCode.Minus)
         
-        -- TYPO LOGIC (Flex only)
         if isFlex and math.random() < FLEX_MODIFIERS.TypoChance and i < #word and i > 2 then
             local wrongKey = Enum.KeyCode[string.char(math.random(65, 90))] 
             vim:SendKeyEvent(true, wrongKey, false, game); task.wait(0.01)
@@ -175,7 +180,6 @@ local function TypeWord(word, skipCount)
             vim:SendKeyEvent(false, code, false, game)
         end
         
-        -- DELAYS
         local currentDelay = GetRandomTime(TYPING_SETTINGS.BaseSpeed)
         if isFlex then
             currentDelay = currentDelay + FLEX_MODIFIERS.SpeedAdder
@@ -226,6 +230,7 @@ local function DoSearch()
                     if wLow:find(query, 1, true) then match = true end 
                 end
                 
+                -- IsBlacklisted CHECK HERE
                 if match and not CheckHist(w) and not IsBlacklisted(w) then
                     if isShortMode then if #w < bestLen then bestLen = #w; found = w end
                     elseif isFlexMode then if #w > bestLen then bestLen = #w; found = w end
@@ -241,7 +246,6 @@ local function DoSearch()
             AddHist(found)
             task.wait(0.1) 
             
-            -- SKIP LOGIC
             local skip = 0
             if isFirstMode then skip = #query end
             
@@ -279,8 +283,25 @@ SaveB.MouseButton1Click:Connect(function()
     WordStatus.Text = "Blacklisted: " .. lastFound
 end)
 
-LL_Btn.MouseButton1Click:Connect(function() LL_Enabled=not LL_Enabled; if LL_Enabled and next(LL_Table)==nil then FetchBlacklist(LL_BLACKLIST_URL, LL_Table) end; LL_Btn.BackgroundColor3=LL_Enabled and Color3.fromRGB(211,84,0) or Color3.fromRGB(40,40,40); LL_Btn.Text=LL_Enabled and "LL Blacklist: ON" or "Last Letter Blacklist" end)
-WB_Btn.MouseButton1Click:Connect(function() WB_Enabled=not WB_Enabled; if WB_Enabled and next(WB_Table)==nil then FetchBlacklist(WB_BLACKLIST_URL, WB_Table) end; WB_Btn.BackgroundColor3=WB_Enabled and Color3.fromRGB(192,57,43) or Color3.fromRGB(40,40,40); WB_Btn.Text=WB_Enabled and "WB Blacklist: ON" or "Word Bomb Blacklist" end)
+LL_Btn.MouseButton1Click:Connect(function() 
+    LL_Enabled=not LL_Enabled; 
+    if LL_Enabled and next(LL_Table)==nil then 
+        WordStatus.Text = "DL Blacklist..."
+        FetchBlacklist(LL_BLACKLIST_URL, LL_Table) 
+    end; 
+    LL_Btn.BackgroundColor3=LL_Enabled and Color3.fromRGB(211,84,0) or Color3.fromRGB(40,40,40); 
+    LL_Btn.Text=LL_Enabled and "LL Blacklist: ON" or "Last Letter Blacklist" 
+end)
+
+WB_Btn.MouseButton1Click:Connect(function() 
+    WB_Enabled=not WB_Enabled; 
+    if WB_Enabled and next(WB_Table)==nil then 
+        WordStatus.Text = "DL Blacklist..."
+        FetchBlacklist(WB_BLACKLIST_URL, WB_Table) 
+    end; 
+    WB_Btn.BackgroundColor3=WB_Enabled and Color3.fromRGB(192,57,43) or Color3.fromRGB(40,40,40); 
+    WB_Btn.Text=WB_Enabled and "WB Blacklist: ON" or "Word Bomb Blacklist" 
+end)
 
 ListB.MouseButton1Click:Connect(function() ListView.Visible = not ListView.Visible end)
 CopyBtn.MouseButton1Click:Connect(function() if setclipboard then setclipboard(table.concat(SAVED_LIST_UI, ", ")); CopyBtn.Text="Copied!" task.wait(1) CopyBtn.Text="Copy All" end end)
@@ -289,4 +310,4 @@ ResetB.MouseButton1Click:Connect(function() GlobalEnv._UPB_History = {}; WordSta
 RunBtn.MouseButton1Click:Connect(DoSearch)
 Input.FocusLost:Connect(function(e) if e then DoSearch() end end)
 
-print("UNPATCHABOMB v14 LOADED")
+print("UNPATCHABOMB v14.5 LOADED")
