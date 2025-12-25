@@ -41,7 +41,8 @@ local DictionaryURLs = {
     "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt",
     "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt",
     "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/Extra.txt",
-    "https://gist.githubusercontent.com/letterpressfan/4145939/raw/4ca79142f49ce9ac8758cf3146ce14aa89b217cd/in-lp1.1-but-not-csw12.txt"
+    "https://gist.githubusercontent.com/letterpressfan/4145939/raw/4ca79142f49ce9ac8758cf3146ce14aa89b217cd/in-lp1.1-but-not-csw12.txt",
+    "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt"
 }
 
 local LL_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForLastLetter.txt"
