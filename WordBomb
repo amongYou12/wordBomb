@@ -1,21 +1,49 @@
 --[[
-    UNPATCHABOMB [v28 - FORCE TYPE EDITION]
-    - FIXED: "Not Typing" issue. Now has 3 backup methods to force text input.
-    - NEW: "Smart Target" (Combo Lock) logic included.
-    - NEW: "Pro Natural" Rhythm (Bursts & Flows).
+    UNPATCHABOMB [v30 - ERROR PROOF EDITION]
+    - FIXED: "interval is empty" crash. Added SafeRandom() wrapper.
+    - LOGIC: Automatically swaps numbers if min > max to prevent errors.
+    - FEATURES: Smart Target, Dead End Trap, Human Flex, Blacklists.
 ]]--
 
-local SCRIPT_VERSION = "v28_ForceType"
+local SCRIPT_VERSION = "v30_ErrorProof"
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-print("[UPB] Initializing v28...")
+--------------------------------------------------------------------------------
+-- 1. ERROR PROOF MATH ENGINE
+--------------------------------------------------------------------------------
+-- This wrapper prevents "interval is empty" errors by forcing correct order
+local function SafeRandom(min, max)
+    if not min then return 0 end
+    if not max then return math.random(min) end -- Standard behavior if only 1 arg
+    
+    -- Ensure integer inputs for math.random
+    min = math.floor(min)
+    max = math.floor(max)
+    
+    -- Swap if inverted
+    if min > max then 
+        min, max = max, min 
+    end
+    
+    -- Handle equal case
+    if min == max then return min end
+    
+    return math.random(min, max)
+end
+
+-- Helper for time tables {0.1, 0.2}
+local function GetRandomTime(tbl)
+    local val1 = tbl[1] * 1000
+    local val2 = tbl[2] * 1000
+    return SafeRandom(val1, val2) / 1000
+end
 
 --------------------------------------------------------------------------------
--- 1. CLEANUP
+-- 2. PARENTING
 --------------------------------------------------------------------------------
 local function GetUI_Parent()
     if getgenv and getgenv().gethui then return getgenv().gethui() end
@@ -26,28 +54,16 @@ local function GetUI_Parent()
 end
 
 local ParentTarget = GetUI_Parent()
-if ParentTarget and ParentTarget:FindFirstChild("Unpatchabomb") then 
-    ParentTarget.Unpatchabomb:Destroy() 
-end
+if not ParentTarget then warn("[UPB] Critical: Cannot find GUI Parent.") return end
+if ParentTarget:FindFirstChild("Unpatchabomb") then ParentTarget.Unpatchabomb:Destroy() end
 
 --------------------------------------------------------------------------------
--- 2. TYPING SERVICES (THE FIX)
+-- 3. SERVICES & SETTINGS
 --------------------------------------------------------------------------------
-local vim = game:GetService("VirtualInputManager")
+local vim = nil
+local s, r = pcall(function() return game:GetService("VirtualInputManager") end)
+if s then vim = r end
 
--- Fallback for legacy exploits
-local function LegacyPress(k)
-    if keypress and keyrelease then
-        local keyVal = k.Value
-        keypress(keyVal)
-        task.wait(0.02)
-        keyrelease(keyVal)
-    end
-end
-
---------------------------------------------------------------------------------
--- 3. CONFIGURATION
---------------------------------------------------------------------------------
 local MIN_LETTER_COUNT = 4
 
 local DictionaryURLs = {
@@ -60,7 +76,6 @@ local DictionaryURLs = {
 local LL_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForLastLetter.txt"
 local WB_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForWordbomb.txt"
 
--- PRO NATURAL SETTINGS
 local TYPING_SETTINGS = {
     BaseSpeed = {0.075, 0.1},        -- Standard speed
     StartSlowDelay = {0.8, 0.2},   -- Thinking time at start
@@ -75,7 +90,7 @@ local FLEX_MODIFIERS = {
     TypoChance = 0.35,         
     HesitationAdd = 0.1       -- ADDS 15% (Total 27%) when Flex is ON
 }
-local LOCK_IN_SPEED_BOOST = 0.045 
+local LOCK_IN_MULTIPLIER = 0.6 
 
 -- DATA
 local LL_Enabled, WB_Enabled = false, false
@@ -96,11 +111,11 @@ if not GlobalEnv._UPB_History then GlobalEnv._UPB_History = {} end
 local function CheckHist(w) return GlobalEnv._UPB_History[w:lower()] end
 local function AddHist(w) GlobalEnv._UPB_History[w:lower()] = true end
 local function Sanitize(s) return s:gsub("%s+", ""):gsub("[^a-zA-Z0-9%-]", "") end
-local function GetRandomTime(tbl) return (math.random(tbl[1]*1000, tbl[2]*1000) / 1000) end
 
 local function ShuffleTable(t)
+    if #t < 2 then return end -- Prevent error on empty/single tables
     for i = #t, 2, -1 do
-        local j = math.random(i)
+        local j = SafeRandom(1, i) -- Use SafeRandom
         t[i], t[j] = t[j], t[i]
     end
 end
@@ -143,21 +158,18 @@ end
 --------------------------------------------------------------------------------
 local Screen = Instance.new("ScreenGui"); Screen.Name = "Unpatchabomb"; Screen.Parent = ParentTarget; Screen.ResetOnSpawn = false
 
--- MAIN
 local Main = Instance.new("Frame"); Main.Parent = Screen; Main.BackgroundColor3 = Color3.fromRGB(20,20,20); Main.Size = UDim2.new(0, 400, 0, 340); Main.Position = UDim2.new(0.5, -200, 0.5, -170); Main.BorderSizePixel = 0
 local Corner = Instance.new("UICorner"); Corner.Parent = Main
 local Top = Instance.new("Frame"); Top.Parent = Main; Top.BackgroundColor3 = Color3.fromRGB(30,30,30); Top.Size = UDim2.new(1,0,0,35)
 local TopCorner = Instance.new("UICorner"); TopCorner.Parent = Top
-local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v28 [FORCE TYPE]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = Enum.Font.GothamBold; Title.TextXAlignment = Enum.TextXAlignment.Left; Title.TextSize = 14
+local Title = Instance.new("TextLabel"); Title.Parent = Top; Title.BackgroundTransparency = 1; Title.Size = UDim2.new(1,0,1,0); Title.Text = "  UNPATCHABOMB v30 [ERROR PROOF]"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = Enum.Font.GothamBold; Title.TextXAlignment = Enum.TextXAlignment.Left; Title.TextSize = 14
 
--- TRAP TAB
 local FinFrame = Instance.new("Frame"); FinFrame.Name = "FinisherFrame"; FinFrame.Parent = Screen; FinFrame.BackgroundColor3 = Color3.fromRGB(25,25,25); FinFrame.Size = UDim2.new(0, 200, 0, 180); FinFrame.Position = UDim2.new(0.5, 210, 0.5, -170); FinFrame.Visible = false
 Instance.new("UICorner", FinFrame)
 local FinTop = Instance.new("Frame"); FinTop.Parent = FinFrame; FinTop.BackgroundColor3 = Color3.fromRGB(35,35,35); FinTop.Size = UDim2.new(1,0,0,30)
 Instance.new("UICorner", FinTop)
 local FinTitle = Instance.new("TextLabel"); FinTitle.Parent = FinTop; FinTitle.Size = UDim2.new(1,0,1,0); FinTitle.BackgroundTransparency = 1; FinTitle.Text = "Trap Settings"; FinTitle.TextColor3 = Color3.new(1,1,1); FinTitle.Font = Enum.Font.GothamBold; FinTitle.TextSize = 12
 
--- SAVED LIST
 local ListView = Instance.new("Frame"); ListView.Parent = Screen; ListView.Size = UDim2.new(0,200,0,280); ListView.Position = UDim2.new(0.5, 210, 0.5, 20); ListView.BackgroundColor3 = Color3.fromRGB(25,25,25); ListView.Visible = false
 Instance.new("UICorner", ListView)
 local ListScroll = Instance.new("ScrollingFrame"); ListScroll.Parent = ListView; ListScroll.Size = UDim2.new(0.9,0,0.7,0); ListScroll.Position = UDim2.new(0.05,0,0.1,0); ListScroll.BackgroundTransparency = 1; ListScroll.CanvasSize = UDim2.new(0,0,0,0)
@@ -202,90 +214,65 @@ MakeDraggable(Main, Top)
 MakeDraggable(FinFrame, FinTop)
 
 --------------------------------------------------------------------------------
--- 5. TYPE WORD (MULTI-METHOD)
+-- 5. TYPING ENGINE (FIXED)
 --------------------------------------------------------------------------------
-local function PressKey(key)
-    -- METHOD 1: VIM
-    if vim then
-        pcall(function()
-            vim:SendKeyEvent(true, key, false, game)
-            task.wait(0.01)
-            vim:SendKeyEvent(false, key, false, game)
-        end)
-    -- METHOD 2: LEGACY
-    elseif keypress then
-        pcall(function()
-            keypress(key.Value)
-            task.wait(0.01)
-            keyrelease(key.Value)
-        end)
-    end
-end
-
-local function ForceAppend(char)
-    -- METHOD 3: DIRECT MANIPULATION (Fallback)
-    local focus = UserInputService:GetFocusedTextBox()
-    if focus then
-        focus.Text = focus.Text .. char
-        focus.CursorPosition = #focus.Text + 1
-    end
-end
-
 local function TypeWord(word, skipCount)
+    if not vim then return end 
     isTyping = true
-    print("[UPB] Typing: " .. word)
-    
     local isFlex = FlexB.Text:find("ON")
+    
     local startDelay = GetRandomTime(TYPING_SETTINGS.StartSlowDelay)
-    if isFlex then startDelay = startDelay + 0.05 end
     task.wait(startDelay) 
 
     local startIndex = (skipCount or 0) + 1
 
     for i = startIndex, #word do
-        local char = word:sub(i,i)
-        local code = Enum.KeyCode[char:upper()] or (char == "-" and Enum.KeyCode.Minus)
+        local char = word:sub(i,i):upper()
+        local code = Enum.KeyCode[char] or (char == "-" and Enum.KeyCode.Minus)
         
-        -- TYPO LOGIC
-        if isFlex and math.random() < FLEX_MODIFIERS.TypoChance and i > 2 and i < #word then
-            local k = Enum.KeyCode[string.char(math.random(65, 90))] 
-            PressKey(k)
-            task.wait(math.random(20, 35)/100)
-            PressKey(Enum.KeyCode.Backspace)
-            task.wait(math.random(10, 25)/100)
+        -- A. TYPOS
+        if isFlex and SafeRandom(1, 100) <= (FLEX_MODIFIERS.TypoChance * 100) and i > 2 and i < #word then
+            local k = Enum.KeyCode[string.char(SafeRandom(65, 90))] 
+            pcall(function() vim:SendKeyEvent(true,k,false,game); task.wait(0.02); vim:SendKeyEvent(false,k,false,game) end)
+            task.wait(SafeRandom(20, 35)/100)
+            pcall(function() vim:SendKeyEvent(true,Enum.KeyCode.Backspace,false,game); task.wait(0.02); vim:SendKeyEvent(false,Enum.KeyCode.Backspace,false,game) end)
+            task.wait(SafeRandom(10, 25)/100)
         end
 
-        -- TYPE CORRECT KEY
+        -- B. PRESS KEY
         if code then 
-            PressKey(code)
-            -- Backup: If VIM failed and nothing happened, assume we need to force it
-            if not vim and not keypress then ForceAppend(char) end
+            pcall(function() 
+                vim:SendKeyEvent(true,code,false,game)
+                task.wait(0.02) 
+                vim:SendKeyEvent(false,code,false,game) 
+            end) 
         end
         
-        -- DELAY LOGIC
+        -- C. DELAY LOGIC
         local delay = GetRandomTime(TYPING_SETTINGS.BaseSpeed)
         
         if isFlex then 
             local totalHesitationChance = TYPING_SETTINGS.HesitationChance + FLEX_MODIFIERS.HesitationAdd
-            local isBursting = (i > 3 and i < #word - 2) and (math.random() < FLEX_MODIFIERS.BurstChance)
+            local isBursting = (i > 3 and i < #word - 2) and (SafeRandom(1, 100) <= (FLEX_MODIFIERS.BurstChance * 100))
             
             if isBursting then
-                delay = FLEX_MODIFIERS.BurstReduction -- Fast!
-            elseif math.random() < totalHesitationChance then
+                delay = FLEX_MODIFIERS.BurstSpeed
+            elseif SafeRandom(1, 100) <= (totalHesitationChance * 100) then
                 delay = delay + GetRandomTime(TYPING_SETTINGS.HesitationDelay) 
             end
         else
-            if math.random() < TYPING_SETTINGS.HesitationChance then
+            if SafeRandom(1, 100) <= (TYPING_SETTINGS.HesitationChance * 100) then
                 delay = delay + GetRandomTime(TYPING_SETTINGS.HesitationDelay) 
             end
         end
         
-        if isLockIn then delay = delay * LOCK_IN_SPEED_BOOST end -- Fast
+        if isLockIn then delay = delay * LOCK_IN_MULTIPLIER end
+        
         task.wait(math.max(0.015, delay))
     end
     
     task.wait(GetRandomTime(TYPING_SETTINGS.SubmitDelay))
-    PressKey(Enum.KeyCode.Return)
+    pcall(function() vim:SendKeyEvent(true,Enum.KeyCode.Return,false,game); task.wait(0.05); vim:SendKeyEvent(false,Enum.KeyCode.Return,false,game) end)
     isTyping = false
 end
 
@@ -351,11 +338,11 @@ local function DoSearch()
             if not found and #candidates > 0 then found = candidates[1] end
 
         else
-            -- NORMAL SEARCH
             local yieldCounter = 0
             local bestLen = isShortMode and 999 or 0
             for _, v in ipairs(ALL_WORDS) do
-                yieldCounter = yieldCounter + 1; if yieldCounter % 15000 == 0 then task.wait() end 
+                yieldCounter = yieldCounter + 1; 
+                if yieldCounter % 15000 == 0 then task.wait() end 
                 local w = Sanitize(v); local wLow = w:lower()
                 if #w >= MIN_LETTER_COUNT and not CheckHist(w) and not IsBlacklisted(w) then
                     local match = false
