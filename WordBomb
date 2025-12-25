@@ -1,15 +1,16 @@
 --[[
-    WORDFLIPPER [v999 - FIXED & OPTIMIZED]
-    - FIXED: "index nil to LayoutOrder" crash (Scope fix).
-    - UI: Renamed to WordFlipper, cleaned up visibility logic.
-    - OPTIMIZATION: Zero-lag Trap Mode calculation.
+    WORDFLIPPER [v1000 - RGB GOD MODE]
+    - FEATURES: Smooth RGB Cycle on Borders, Titles, and Active Elements.
+    - RESTORED: Word Bomb Blacklist (WB) added back.
+    - UI: Cleaned up, high contrast text.
 ]]--
 
-local SCRIPT_VERSION = "v999_WordFlipper"
+local SCRIPT_VERSION = "v1000_RGB_God"
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -52,7 +53,7 @@ local vim = nil
 pcall(function() vim = game:GetService("VirtualInputManager") end)
 
 --------------------------------------------------------------------------------
--- 3. UI LIBRARY (REBRANDED)
+-- 3. UI LIBRARY (RGB EDITION)
 --------------------------------------------------------------------------------
 local UI = {}
 local Colors = {
@@ -60,28 +61,34 @@ local Colors = {
     Sidebar = Color3.fromRGB(30, 30, 35),
     Group = Color3.fromRGB(25, 25, 28),
     Outline = Color3.fromRGB(45, 45, 50),
-    Accent = Color3.fromRGB(0, 255, 128), -- WordFlipper Green
-    Text = Color3.fromRGB(240, 240, 240),
-    TextDim = Color3.fromRGB(140, 140, 140),
-    Red = Color3.fromRGB(255, 60, 60)
+    Text = Color3.fromRGB(255, 255, 255),
+    TextDim = Color3.fromRGB(150, 150, 150),
 }
 
--- Global references to UI elements to prevent nil errors
+-- RGB Management
+local RGB_Objects = {Text={}, Border={}, Bg={}} -- Objects to update
+local function RegisterRGB(obj, type)
+    table.insert(RGB_Objects[type], obj)
+end
+
 local Screen, MainFrame, SidebarFrame, ContentFrame
 local TabButtons = {}
 
 function UI.Create(parent)
-    if parent:FindFirstChild("WordFlipperUI") then parent.WordFlipperUI:Destroy() end
+    if parent:FindFirstChild("WordFlipperRGB") then parent.WordFlipperRGB:Destroy() end
     
     local S = Instance.new("ScreenGui")
-    S.Name = "WordFlipperUI"; S.Parent = parent; S.ResetOnSpawn = false
+    S.Name = "WordFlipperRGB"; S.Parent = parent; S.ResetOnSpawn = false
+    S.IgnoreGuiInset = true
     
     local Main = Instance.new("Frame"); Main.Name = "Main"; Main.Parent = S
     Main.BackgroundColor3 = Colors.Bg; Main.Size = UDim2.new(0, 580, 0, 420)
     Main.Position = UDim2.new(0.5, -290, 0.5, -210); Main.BorderSizePixel = 0
-    Main.Active = true; Main.Draggable = true -- Built-in draggable for simplicity
+    Main.Active = true; Main.Draggable = true 
     
-    local Stroke = Instance.new("UIStroke"); Stroke.Parent = Main; Stroke.Color = Colors.Outline; Stroke.Thickness = 2
+    -- RGB Border
+    local Stroke = Instance.new("UIStroke"); Stroke.Parent = Main; Stroke.Thickness = 2
+    RegisterRGB(Stroke, "Border")
     
     -- Sidebar
     local Side = Instance.new("Frame"); Side.Parent = Main
@@ -90,11 +97,12 @@ function UI.Create(parent)
     local SideList = Instance.new("UIListLayout"); SideList.Parent = Side
     SideList.SortOrder = Enum.SortOrder.LayoutOrder; SideList.Padding = UDim.new(0, 5)
     
-    -- Title
+    -- Title with RGB
     local Title = Instance.new("TextLabel"); Title.Parent = Side
     Title.Size = UDim2.new(1,0,0,50); Title.BackgroundTransparency = 1
-    Title.Text = "WordFlipper"; Title.Font = Enum.Font.GothamBlack; Title.TextSize = 18
-    Title.TextColor3 = Colors.Accent; Title.LayoutOrder = 0
+    Title.Text = "WordFlipper"; Title.Font = Enum.Font.GothamBlack; Title.TextSize = 20
+    Title.LayoutOrder = 0
+    RegisterRGB(Title, "Text")
     
     -- Content
     local Cont = Instance.new("Frame"); Cont.Parent = Main
@@ -121,25 +129,39 @@ local function CreateTab(name, order)
     local RightCol = Instance.new("Frame"); RightCol.Parent = Page; RightCol.Size = UDim2.new(0.48, 0, 1, 0); RightCol.Position = UDim2.new(0.52, 0, 0, 0); RightCol.BackgroundTransparency = 1
     
     local function Activate()
-        for _, btn in pairs(TabButtons) do btn.TextColor3 = Colors.TextDim end
+        for _, btn in pairs(TabButtons) do 
+            btn.TextColor3 = Colors.TextDim 
+            -- Remove from RGB list if exists (simplified: we just reset color)
+        end
         for _, p in pairs(ContentFrame:GetChildren()) do p.Visible = false end
-        TabBtn.TextColor3 = Colors.Accent
+        
+        -- We want the active tab to be RGB
         Page.Visible = true
     end
-    TabBtn.MouseButton1Click:Connect(Activate)
-    table.insert(TabButtons, TabBtn)
     
+    -- Manual RGB handling for active tab is tricky, so we'll just keep active tabs white or static for cleanliness,
+    -- OR we can register the active one dynamically. For now, let's keep it simple: Active = White, Inactive = Dim.
+    -- Wait, you asked for cool RGB. Let's make the active tab RGB.
+    
+    TabBtn.MouseButton1Click:Connect(function()
+        Activate()
+        -- Hacky way to manage single active RGB element would be complex, 
+        -- so we will just set the Active Color in the loop loop using a variable.
+        UI.CurrentTabBtn = TabBtn 
+    end)
+    
+    table.insert(TabButtons, TabBtn)
     return LeftCol, RightCol, Activate
 end
 
--- Groupbox Helper
 local function CreateGroup(parent, title)
     local G = Instance.new("Frame"); G.Parent = parent; G.BackgroundColor3 = Colors.Group
     G.Size = UDim2.new(1,0,0,20); G.AutomaticSize = Enum.AutomaticSize.Y
     Instance.new("UICorner", G).CornerRadius = UDim.new(0, 4)
     
     local T = Instance.new("TextLabel"); T.Parent = G; T.Text = title; T.Position = UDim2.new(0,10,0,0); T.Size = UDim2.new(1,-20,0,25)
-    T.BackgroundTransparency = 1; T.TextColor3 = Colors.Accent; T.Font = Enum.Font.GothamBold; T.TextSize = 12; T.TextXAlignment = Enum.TextXAlignment.Left
+    T.BackgroundTransparency = 1; T.TextColor3 = Colors.Text; T.Font = Enum.Font.GothamBold; T.TextSize = 12; T.TextXAlignment = Enum.TextXAlignment.Left
+    RegisterRGB(T, "Text") -- Group titles are RGB
     
     local Cont = Instance.new("Frame"); Cont.Parent = G; Cont.Position = UDim2.new(0,0,0,25); Cont.Size = UDim2.new(1,0,0,0)
     Cont.AutomaticSize = Enum.AutomaticSize.Y; Cont.BackgroundTransparency = 1
@@ -147,25 +169,36 @@ local function CreateGroup(parent, title)
     local Pad = Instance.new("UIPadding"); Pad.Parent = Cont; Pad.PaddingTop = UDim.new(0,5); Pad.PaddingBottom = UDim.new(0,10); Pad.PaddingLeft = UDim.new(0,10); Pad.PaddingRight = UDim.new(0,10)
     local Layout = Instance.new("UIListLayout"); Layout.Parent = Cont; Layout.Padding = UDim.new(0,8); Layout.SortOrder = Enum.SortOrder.LayoutOrder
     
-    -- Padding for column
     if not parent:FindFirstChild("UIListLayout") then
         local l = Instance.new("UIListLayout"); l.Parent = parent; l.Padding = UDim.new(0, 10); l.SortOrder = Enum.SortOrder.LayoutOrder
     end
-    
     return Cont
 end
 
 local function AddToggle(parent, text, state, callback)
     local F = Instance.new("Frame"); F.Parent = parent; F.Size = UDim2.new(1,0,0,20); F.BackgroundTransparency = 1
+    
     local Box = Instance.new("TextButton"); Box.Parent = F; Box.Size = UDim2.new(0,16,0,16); Box.Position = UDim2.new(0,0,0.5,-8)
-    Box.BackgroundColor3 = state and Colors.Accent or Color3.fromRGB(50,50,50); Box.Text = ""; Instance.new("UICorner", Box).CornerRadius = UDim.new(0,4)
+    Box.BackgroundColor3 = state and Color3.new(1,1,1) or Color3.fromRGB(50,50,50)
+    Box.Text = ""; Instance.new("UICorner", Box).CornerRadius = UDim.new(0,4)
+    
     local L = Instance.new("TextLabel"); L.Parent = F; L.Text = text; L.Position = UDim2.new(0,24,0,0); L.Size = UDim2.new(1,-24,1,0)
     L.BackgroundTransparency = 1; L.TextColor3 = Colors.Text; L.TextXAlignment = Enum.TextXAlignment.Left; L.Font = Enum.Font.Gotham; L.TextSize = 12
     
+    -- If state is true on init, register RGB
+    if state then RegisterRGB(Box, "Bg") end
+    
     Box.MouseButton1Click:Connect(function()
         state = not state
-        Box.BackgroundColor3 = state and Colors.Accent or Color3.fromRGB(50,50,50)
         callback(state)
+        -- Handle RGB registration
+        if state then
+            RegisterRGB(Box, "Bg")
+        else
+            Box.BackgroundColor3 = Color3.fromRGB(50,50,50)
+            -- Remove from RGB list
+            for i,v in pairs(RGB_Objects.Bg) do if v==Box then table.remove(RGB_Objects.Bg, i) break end end
+        end
     end)
 end
 
@@ -182,9 +215,9 @@ local function AddInput(parent, placeholder)
     return I
 end
 
-local function AddLabel(parent, text, color)
+local function AddLabel(parent, text)
     local L = Instance.new("TextLabel"); L.Parent = parent; L.Size = UDim2.new(1,0,0,15); L.BackgroundTransparency = 1
-    L.Text = text; L.TextColor3 = color or Colors.TextDim; L.Font = Enum.Font.Gotham; L.TextSize = 11; L.TextXAlignment = Enum.TextXAlignment.Left
+    L.Text = text; L.TextColor3 = Colors.TextDim; L.Font = Enum.Font.Gotham; L.TextSize = 11; L.TextXAlignment = Enum.TextXAlignment.Left
     return L
 end
 
@@ -193,11 +226,10 @@ end
 --------------------------------------------------------------------------------
 local ColL1, ColR1, Act1 = CreateTab("Main", 1)
 local ColL2, ColR2, Act2 = CreateTab("Config", 2)
-Act1() -- Open first tab
 
 -- RAGE TAB
 local G_Input = CreateGroup(ColL1, "Scanner")
-local Status = AddLabel(G_Input, "Status: Idle", Colors.Accent)
+local Status = AddLabel(G_Input, "Status: Idle")
 local MainInput = AddInput(G_Input, "Type Syllable...")
 
 local G_Modes = CreateGroup(ColL1, "Modes")
@@ -207,13 +239,17 @@ AddToggle(G_Modes, "Human Flex", false, function(v) SETTINGS.Mode.Flex = v; if v
 AddToggle(G_Modes, "Lock-In (Speed)", false, function(v) SETTINGS.Mode.Lock = v end)
 
 local G_Trap = CreateGroup(ColR1, "Mind Fucker (Trap)")
-local TrapLbl = AddLabel(G_Trap, "Mode: OFF", Colors.TextDim)
+local TrapLbl = AddLabel(G_Trap, "Mode: OFF")
 AddButton(G_Trap, "Toggle Trap Level", function()
     local m = SETTINGS.Trap.Mode
     if m == 0 then m = 2 elseif m == 2 then m = 3 elseif m == 3 then m = 4 else m = 0 end
     SETTINGS.Trap.Mode = m; SETTINGS.Trap.Target = nil
     TrapLbl.Text = m == 0 and "Mode: OFF" or "Mode: Trap " .. m .. " Letters"
-    TrapLbl.TextColor3 = m == 0 and Colors.TextDim or Colors.Red
+    -- If active, add to RGB text list, else remove
+    if m > 0 then RegisterRGB(TrapLbl, "Text") else 
+        TrapLbl.TextColor3 = Colors.TextDim
+        for i,v in pairs(RGB_Objects.Text) do if v==TrapLbl then table.remove(RGB_Objects.Text, i) break end end
+    end
 end)
 
 local G_Run = CreateGroup(ColR1, "Actions")
@@ -224,16 +260,32 @@ local G_BL = CreateGroup(ColL2, "Blacklists")
 AddToggle(G_BL, "Last Letter Database", false, function(v)
     SETTINGS.Blacklists.LL = v
     if v and #SETTINGS.Blacklists.LL_Data == 0 then
-        Status.Text = "Fetching DB..."
+        Status.Text = "Fetching LL DB..."
         task.spawn(function()
             local s, r = pcall(game.HttpGet, game, "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForLastLetter.txt")
             if s then
                 for w in r:gmatch("[^,\n]+") do SETTINGS.Blacklists.LL_Data[w:gsub("%s",""):lower()] = true end
-                Status.Text = "DB Loaded"
+                Status.Text = "LL DB Loaded"
             end
         end)
     end
 end)
+
+-- WORD BOMB BLACKLIST (ADDED BACK)
+AddToggle(G_BL, "Word Bomb Database", false, function(v)
+    SETTINGS.Blacklists.WB = v
+    if v and #SETTINGS.Blacklists.WB_Data == 0 then
+        Status.Text = "Fetching WB DB..."
+        task.spawn(function()
+            local s, r = pcall(game.HttpGet, game, "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForWordbomb.txt")
+            if s then
+                for w in r:gmatch("[^,\n]+") do SETTINGS.Blacklists.WB_Data[w:gsub("%s",""):lower()] = true end
+                Status.Text = "WB DB Loaded"
+            end
+        end)
+    end
+end)
+
 AddButton(G_BL, "Blacklist Last Word", function()
     if SETTINGS.Blacklists.LastUsed then
         SETTINGS.Blacklists.Session[SETTINGS.Blacklists.LastUsed] = true
@@ -242,8 +294,38 @@ AddButton(G_BL, "Blacklist Last Word", function()
 end)
 AddButton(G_BL, "Clear History", function() getgenv()._UPB_History = {}; Status.Text = "History Cleared" end)
 
+Act1() -- Open first tab
+UI.CurrentTabBtn = TabButtons[1] -- Init RGB on first tab
+
 --------------------------------------------------------------------------------
--- 5. LOGIC
+-- 5. RGB LOOP
+--------------------------------------------------------------------------------
+task.spawn(function()
+    while Screen.Parent do
+        local t = tick() * 1 -- Speed of rainbow
+        local color = Color3.fromHSV(t % 1, 0.8, 1) -- Smooth HSV Cycle
+        
+        -- Update Borders
+        for _, v in pairs(RGB_Objects.Border) do v.Color = color end
+        -- Update Text
+        for _, v in pairs(RGB_Objects.Text) do v.TextColor3 = color end
+        -- Update Backgrounds
+        for _, v in pairs(RGB_Objects.Bg) do v.BackgroundColor3 = color end
+        
+        -- Update Active Tab
+        if UI.CurrentTabBtn then UI.CurrentTabBtn.TextColor3 = color end
+        
+        -- Reset non-active tabs to dim
+        for _, btn in pairs(TabButtons) do
+            if btn ~= UI.CurrentTabBtn then btn.TextColor3 = Colors.TextDim end
+        end
+        
+        RunService.Heartbeat:Wait()
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 6. LOGIC
 --------------------------------------------------------------------------------
 local function CheckHist(w) return getgenv()._UPB_History[w] end
 local function AddHist(w) getgenv()._UPB_History[w] = true end
@@ -256,18 +338,19 @@ local function DoSearch()
     
     isRunning = true
     Status.Text = "Searching..."
-    Status.TextColor3 = Colors.Accent
+    -- Status uses RGB if we want, or static white. Let's make it static for readability unless Trap is on.
     
     task.spawn(function()
         local candidates = {}
         local count = 0
         
-        -- Search Optimization: Yield every X iterations
         for i, entry in ipairs(CLEAN_DICTIONARY) do
             if i % 15000 == 0 then task.wait() end
             
+            -- Check all blacklists
             if not CheckHist(entry.lower) and 
                not (SETTINGS.Blacklists.LL and SETTINGS.Blacklists.LL_Data[entry.lower]) and 
+               not (SETTINGS.Blacklists.WB and SETTINGS.Blacklists.WB_Data[entry.lower]) and 
                not SETTINGS.Blacklists.Session[entry.lower] then
                
                 local match = false
@@ -280,7 +363,6 @@ local function DoSearch()
                 if match then
                     table.insert(candidates, entry)
                     count = count + 1
-                    -- Trap Mode requires more candidates to find a good trap
                     if SETTINGS.Trap.Mode == 0 and count > 40 then break end
                     if SETTINGS.Trap.Mode > 0 and count > 200 then break end
                 end
@@ -289,41 +371,30 @@ local function DoSearch()
         
         local final = nil
         
+        -- TRAP LOGIC
         if SETTINGS.Trap.Mode > 0 then
             Status.Text = "Calculating..."
-            
-            -- Trap Logic Check
             if SETTINGS.Trap.Target then
                 for _, c in ipairs(candidates) do
-                    if c.lower:sub(-SETTINGS.Trap.Mode) == SETTINGS.Trap.Target then
-                        final = c; break
-                    end
+                    if c.lower:sub(-SETTINGS.Trap.Mode) == SETTINGS.Trap.Target then final = c; break end
                 end
             end
             
             if not final then
-                local bestScore = 99
                 local bestComplex = -99
                 local bestT = nil
-                
+                -- Shuffle
                 for i = #candidates, 2, -1 do local j = SafeRandom(1, i); candidates[i], candidates[j] = candidates[j], candidates[i] end
                 
                 for i, c in ipairs(candidates) do
-                    if i > 50 then break end -- Limit complexity check
-                    task.wait() -- Anti-Freeze
+                    if i > 50 then break end 
+                    task.wait() 
                     if #c.lower > SETTINGS.Trap.Mode then
                         local suf = c.lower:sub(-SETTINGS.Trap.Mode)
-                        
-                        -- Mock "Survivability" (Fake logic for speed: Random + Length)
-                        -- Real calculation is too slow for Lua without a pre-baked map
-                        local score = 1 -- Assume low survivability
                         local complex = c.len
                         if string.find("jqxzk", suf:sub(-1)) then complex = complex + 50 end
-                        
                         if complex > bestComplex then
-                            bestComplex = complex
-                            final = c
-                            bestT = suf
+                            bestComplex = complex; final = c; bestT = suf
                         end
                     end
                 end
@@ -331,7 +402,7 @@ local function DoSearch()
             end
         end
         
-        -- Normal Logic
+        -- NORMAL LOGIC
         if not final and #candidates > 0 then
             if SETTINGS.Mode.Short then
                 local min = 999
@@ -371,7 +442,6 @@ local function DoSearch()
             vim:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
         else
             Status.Text = "Not Found"
-            Status.TextColor3 = Colors.Red
         end
         isRunning = false
     end)
