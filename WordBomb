@@ -27,7 +27,7 @@ local DictionaryURLs = {
 
 -- TYPING BEHAVIOR
 local TYPING_SETTINGS = {
-    BaseSpeed = {0.070, 0.085},      
+    BaseSpeed = {0.065, 0.085},      
     StartSlowDelay = {0.08, 0.12},   
     HesitationChance = 0.25,         
     HesitationDelay = {0.15, 0.25},  
@@ -35,11 +35,11 @@ local TYPING_SETTINGS = {
 }
 
 local FLEX_MODIFIERS = {
-    SpeedAdder = 0.0125,
+    SpeedAdder = 0.0025,
     BurstChance = 0.40,
     BurstReduction = 0.050,
-    TypoChance = 0.10,
-    HesitationAdd = 0.15
+    TypoChance = 0.02,
+    HesitationAdd = 0.02
 }
 
 local LOCK_IN_SPEED_BOOST = 0.040 
