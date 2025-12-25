@@ -29,7 +29,7 @@ local TYPING_SETTINGS = {
 }
 
 local FLEX_MODIFIERS = {
-    SpeedAdder = 0.0125,
+    SpeedAdder = 0.05,
     BurstChance = 0.40,
     BurstReduction = 0.050,
     TypoChance = 0.10,
