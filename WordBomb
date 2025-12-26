@@ -1,12 +1,11 @@
 --[[
-    UNPATCHABOMB [v1005 - MINDFUCKER EDITION]
-    - NEW: Burst Chance slider for Flex Mode to simulate erratic typing.
-    - EVOLVED: Trap Mode is now a sadistic AI that actively seeks to end the game for others.
-    - OPTIMIZED: Trap Mode search is now lightning fast, no more fucking lag.
+    UNPATCHABOMB [v1006 - DUAL-PERSONALITY EDITION]
+    - NEW: Separate settings for Normal and Flex modes.
+    - EVOLVED: Full control over two distinct typing profiles.
     - CORE: Paranoia Mode active. Logic will survive garbage executors.
 ]]--
 
-local SCRIPT_VERSION = "v1005_Mindfucker"
+local SCRIPT_VERSION = "v1006_DualPersonality"
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -61,12 +60,22 @@ local DictionaryURLs = {
 local LL_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForLastLetter.txt"
 local WB_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForWordbomb.txt"
 
+-- NORMAL MODE SETTINGS
 local SETTINGS = {
     Speed_Min = 0.05, Speed_Var = 0.5,
     Start_Min = 0.1,  Start_Var = 0.5,
     Hesit_Chance = 0.32,
-    Hesit_Val_Min = 0.15, Hesit_Val_Var = 0.5,
-    Flex_Typo = 0.20, Flex_Burst = 0.15 -- Added Burst Chance
+    Hesit_Val_Min = 0.15, Hesit_Val_Var = 0.5
+}
+
+-- FLEX MODE SETTINGS
+local FLEX_SETTINGS = {
+    Speed_Min = 0.04, Speed_Var = 0.8,
+    Start_Min = 0.05,  Start_Var = 1.0,
+    Hesit_Chance = 0.45,
+    Hesit_Val_Min = 0.1, Hesit_Val_Var = 1.2,
+    Flex_Typo = 0.20, 
+    Flex_Burst = 0.15 
 }
 
 local function GetRange(min, variancePercent)
@@ -111,7 +120,6 @@ local function IsBlacklisted(w)
     return false
 end
 
--- Optimized function to count words starting with a suffix
 local function GetStartingCount(suffix)
     local lowSuffix = suffix:lower()
     return WordEndings[lowSuffix] and #WordEndings[lowSuffix] or 0
@@ -171,8 +179,8 @@ local function AddRGBStroke(obj, thickness)
 end
 
 -- FRAMES
-local MainFrame = Instance.new("Frame"); MainFrame.Name="Main"; MainFrame.Parent=Screen; MainFrame.Size=UDim2.new(0, 420, 0, 490); MainFrame.Position=UDim2.new(0.5,-210,0.5,-245); MainFrame.BackgroundColor3=Colors.Background; MainFrame.BorderSizePixel=0
-Instance.new("UICorner", MainFrame).CornerRadius=UDim.new(0, 10); AddRGBStroke(MainFrame, 2)
+local MainFrame = Instance.new("Frame"); MainFrame.Name="Main"; MainFrame.Parent=Screen; MainFrame.Size=UDim2.new(0, 420, 0, 650); MainFrame.Position=UDim2.new(0.5,-210,0.5,-325); MainFrame.BackgroundColor3=Colors.Background; MainFrame.BorderSizePixel=0
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10); AddRGBStroke(MainFrame, 2)
 
 -- DRAG
 local dragging, dragInput, dragStart, startPos
@@ -184,11 +192,11 @@ UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInp
 -- COMPONENTS
 local Header = Instance.new("Frame"); Header.Parent = MainFrame; Header.Size = UDim2.new(1, 0, 0, 40); Header.BackgroundColor3 = Colors.Element; Header.BorderSizePixel = 0
 local HT = Instance.new("TextLabel"); HT.Parent = Header; HT.Size = UDim2.new(1, -20, 1, 0); HT.Position = UDim2.new(0, 15, 0, 0); HT.BackgroundTransparency = 1
-HT.Text = "UNPATCHABOMB // v1005"; HT.Font = Enum.Font.GothamBlack; HT.TextSize = 16; HT.TextXAlignment = Enum.TextXAlignment.Left; HT.TextColor3 = Colors.Accent
+HT.Text = "UNPATCHABOMB // v1006"; HT.Font = Enum.Font.GothamBlack; HT.TextSize = 16; HT.TextXAlignment = Enum.TextXAlignment.Left; HT.TextColor3 = Colors.Accent
 table.insert(UI_ElementsToColor, HT)
 
 local Status = Instance.new("TextLabel"); Status.Parent = MainFrame; Status.Size = UDim2.new(1, -30, 0, 20); Status.Position = UDim2.new(0, 15, 0, 50); Status.BackgroundTransparency = 1
-Status.Text = "Mindfucker Active."; Status.Font = Enum.Font.GothamMedium; Status.TextColor3 = Colors.SubText; Status.TextSize = 12; Status.TextXAlignment = Enum.TextXAlignment.Left
+Status.Text = "Dual-Personality Active."; Status.Font = Enum.Font.GothamMedium; Status.TextColor3 = Colors.SubText; Status.TextSize = 12; Status.TextXAlignment = Enum.TextXAlignment.Left
 
 local InputContainer = Instance.new("Frame"); InputContainer.Parent = MainFrame; InputContainer.Size = UDim2.new(1, -30, 0, 40); InputContainer.Position = UDim2.new(0, 15, 0, 80); InputContainer.BackgroundTransparency = 1
 local InputBox = Instance.new("TextBox"); InputBox.Parent = InputContainer; InputBox.Size = UDim2.new(0.7, -5, 1, 0); InputBox.BackgroundColor3 = Colors.Element; InputBox.Text = ""; InputBox.PlaceholderText = "Input..."; InputBox.TextColor3 = Colors.Text; InputBox.Font = Enum.Font.GothamBold; InputBox.TextSize = 14
@@ -206,7 +214,7 @@ local MenuContainer = Instance.new("Frame"); MenuContainer.Parent = MainFrame; M
 local MainMenuBtn = Instance.new("TextButton"); MainMenuBtn.Parent = MenuContainer; MainMenuBtn.Size = UDim2.new(0.5, -5, 1, 0); MainMenuBtn.BackgroundColor3 = Colors.ElementHover; MainMenuBtn.Text = "MODES"; MainMenuBtn.TextColor3 = Colors.Text; MainMenuBtn.Font = Enum.Font.GothamBold; MainMenuBtn.TextSize = 12; Instance.new("UICorner", MainMenuBtn).CornerRadius = UDim.new(0, 6)
 local SettingsBtn = Instance.new("TextButton"); SettingsBtn.Parent = MenuContainer; SettingsBtn.Size = UDim2.new(0.5, -5, 1, 0); SettingsBtn.Position = UDim2.new(0.5, 5, 0, 0); SettingsBtn.BackgroundColor3 = Colors.Element; SettingsBtn.Text = "CONFIG"; SettingsBtn.TextColor3 = Colors.SubText; SettingsBtn.Font = Enum.Font.GothamBold; SettingsBtn.TextSize = 12; Instance.new("UICorner", SettingsBtn).CornerRadius = UDim.new(0, 6)
 
-local ViewFrame = Instance.new("Frame"); ViewFrame.Parent = MainFrame; ViewFrame.Size = UDim2.new(1, -30, 0, 320); ViewFrame.Position = UDim2.new(0, 15, 0, 160); ViewFrame.BackgroundTransparency = 1
+local ViewFrame = Instance.new("Frame"); ViewFrame.Parent = MainFrame; ViewFrame.Size = UDim2.new(1, -30, 0, 480); ViewFrame.Position = UDim2.new(0, 15, 0, 160); ViewFrame.BackgroundTransparency = 1
 
 local ModesGrid = Instance.new("ScrollingFrame"); ModesGrid.Name = "ModesGrid"; ModesGrid.Parent = ViewFrame; ModesGrid.Size = UDim2.new(1, 0, 1, 0); ModesGrid.BackgroundTransparency = 1; ModesGrid.BorderSizePixel = 0; ModesGrid.ScrollBarThickness = 2
 local UIGrid = Instance.new("UIGridLayout"); UIGrid.Parent = ModesGrid; UIGrid.CellSize = UDim2.new(0.48, 0, 0, 35); UIGrid.CellPadding = UDim2.new(0.04, 0, 0, 10)
@@ -242,15 +250,37 @@ local function CreateSlider(name, min, max, default, callback)
 end
 
 -- === CONFIGURABLE SLIDERS ===
-CreateSlider("MIN SPEED", 0.01, 0.2, 0.05, function(v) SETTINGS.Speed_Min = v end)
-CreateSlider("SPEED VARIANCE", 0.0, 2.0, 0.5, function(v) SETTINGS.Speed_Var = v end)
-CreateSlider("START DELAY", 0.0, 1.5, 0.1, function(v) SETTINGS.Start_Min = v end)
-CreateSlider("DELAY VARIANCE", 0.0, 2.0, 0.5, function(v) SETTINGS.Start_Var = v end)
-CreateSlider("HESIT CHANCE", 0.0, 1.0, 0.3, function(v) SETTINGS.Hesit_Chance = v end)
-CreateSlider("HESIT VARIANCE", 0.0, 2.0, 0.5, function(v) SETTINGS.Hesit_Val_Var = v end)
-CreateSlider("TYPO CHANCE", 0.0, 1.0, 0.2, function(v) SETTINGS.Flex_Typo = v end)
-CreateSlider("BURST CHANCE", 0.0, 1.0, 0.15, function(v) SETTINGS.Flex_Burst = v end) -- NEW SLIDER
-SettingsList.CanvasSize = UDim2.new(0, 0, 0, 8 * 50) -- Updated for new slider
+local function AddSectionHeader(text)
+    local header = Instance.new("TextLabel")
+    header.Parent = SettingsList
+    header.Size = UDim2.new(1, 0, 0, 25)
+    header.BackgroundTransparency = 1
+    header.Text = text
+    header.Font = Enum.Font.GothamBlack
+    header.TextSize = 12
+    header.TextColor3 = Colors.Text
+    header.TextXAlignment = Enum.TextXAlignment.Center
+end
+
+AddSectionHeader("--- NORMAL MODE SETTINGS ---")
+CreateSlider("MIN SPEED", 0.01, 0.2, SETTINGS.Speed_Min, function(v) SETTINGS.Speed_Min = v end)
+CreateSlider("SPEED VARIANCE", 0.0, 2.0, SETTINGS.Speed_Var, function(v) SETTINGS.Speed_Var = v end)
+CreateSlider("START DELAY", 0.0, 1.5, SETTINGS.Start_Min, function(v) SETTINGS.Start_Min = v end)
+CreateSlider("DELAY VARIANCE", 0.0, 2.0, SETTINGS.Start_Var, function(v) SETTINGS.Start_Var = v end)
+CreateSlider("HESIT CHANCE", 0.0, 1.0, SETTINGS.Hesit_Chance, function(v) SETTINGS.Hesit_Chance = v end)
+CreateSlider("HESIT VARIANCE", 0.0, 2.0, SETTINGS.Hesit_Val_Var, function(v) SETTINGS.Hesit_Val_Var = v end)
+
+AddSectionHeader("--- FLEX MODE SETTINGS ---")
+CreateSlider("FLEX MIN SPEED", 0.01, 0.2, FLEX_SETTINGS.Speed_Min, function(v) FLEX_SETTINGS.Speed_Min = v end)
+CreateSlider("FLEX SPEED VAR", 0.0, 2.0, FLEX_SETTINGS.Speed_Var, function(v) FLEX_SETTINGS.Speed_Var = v end)
+CreateSlider("FLEX START DELAY", 0.0, 1.5, FLEX_SETTINGS.Start_Min, function(v) FLEX_SETTINGS.Start_Min = v end)
+CreateSlider("FLEX DELAY VAR", 0.0, 2.0, FLEX_SETTINGS.Start_Var, function(v) FLEX_SETTINGS.Start_Var = v end)
+CreateSlider("FLEX HESIT CHANCE", 0.0, 1.0, FLEX_SETTINGS.Hesit_Chance, function(v) FLEX_SETTINGS.Hesit_Chance = v end)
+CreateSlider("FLEX HESIT VAR", 0.0, 2.0, FLEX_SETTINGS.Hesit_Val_Var, function(v) FLEX_SETTINGS.Hesit_Val_Var = v end)
+CreateSlider("FLEX TYPO CHANCE", 0.0, 1.0, FLEX_SETTINGS.Flex_Typo, function(v) FLEX_SETTINGS.Flex_Typo = v end)
+CreateSlider("FLEX BURST CHANCE", 0.0, 1.0, FLEX_SETTINGS.Flex_Burst, function(v) FLEX_SETTINGS.Flex_Burst = v end)
+
+SettingsList.CanvasSize = UDim2.new(0, 0, 0, 2 * 25 + 14 * 50) -- Updated for new sliders
 
 -- === TOGGLES ===
 local function CreateToggle(text, callback)
@@ -309,12 +339,14 @@ end
 local function TypeWord(word, skipCount)
     if not vim then Status.Text = "Error: No VIM" return end 
     isTyping = true
-    
-    local speedRange = GetRange(SETTINGS.Speed_Min, SETTINGS.Speed_Var)
-    local startRange = GetRange(SETTINGS.Start_Min, SETTINGS.Start_Var)
+
+    local isFlex = FlexT.Text:find("ON")
+    local currentSettings = isFlex and FLEX_SETTINGS or SETTINGS
+
+    local speedRange = GetRange(currentSettings.Speed_Min, currentSettings.Speed_Var)
+    local startRange = GetRange(currentSettings.Start_Min, currentSettings.Start_Var)
     task.wait(GetRandomTime(startRange))
     
-    local isFlex = FlexT.Text:find("ON")
     local startIndex = (skipCount or 0) + 1
     
     for i = startIndex, #word do
@@ -324,23 +356,22 @@ local function TypeWord(word, skipCount)
         local charDelay = GetRandomTime(speedRange)
         
         if isFlex then
-            if i > 2 and i < #word and (SafeRandom(1, 1000) / 1000) <= SETTINGS.Flex_Typo then
+            if i > 2 and i < #word and (SafeRandom(1, 1000) / 1000) <= currentSettings.Flex_Typo then
                 local wrongChar = string.char(SafeRandom(65, 90)) 
                 local wrongCode = Enum.KeyCode[wrongChar]
                 if wrongCode then
                     SafeSendKey(wrongCode, true); task.wait(SafeRandom(50, 150)/1000); SafeSendKey(Enum.KeyCode.Backspace, true)
                 end
             end
-            if (SafeRandom(1, 1000) / 1000) <= SETTINGS.Hesit_Chance then
-                local hesitRange = GetRange(SETTINGS.Hesit_Val_Min, SETTINGS.Hesit_Val_Var)
+            if (SafeRandom(1, 1000) / 1000) <= currentSettings.Hesit_Chance then
+                local hesitRange = GetRange(currentSettings.Hesit_Val_Min, currentSettings.Hesit_Val_Var)
                 task.wait(GetRandomTime(hesitRange))
             end
-            -- NEW BURST LOGIC
-            if (SafeRandom(1, 1000) / 1000) <= SETTINGS.Flex_Burst then
+            if (SafeRandom(1, 1000) / 1000) <= currentSettings.Flex_Burst then
                 charDelay = 0.02 -- Lightning fast
             end
         else
-            if (SafeRandom(1, 1000) / 1000) <= (SETTINGS.Hesit_Chance * 0.5) then
+            if (SafeRandom(1, 1000) / 1000) <= currentSettings.Hesit_Chance then
                  task.wait(GetRandomTime({0.1, 0.2}))
             end
         end
@@ -366,7 +397,7 @@ local function DoSearch()
     task.spawn(function()
         local candidates = {}
         local isTrap = TrapT.Text:find("ON"); local isFirst = FirstT.Text:find("ON")
-        local isShort = ShortT.Text:find("ON"); local isFlex = FlexT.Text:find("ON")
+        local isShort = ShortT.Text:find("ON")
         
         local batch = 0
         for _, v in ipairs(ALL_WORDS) do
@@ -384,41 +415,35 @@ local function DoSearch()
         if #candidates > 0 then
             if isTrap then
                 local bestScore = -9999
-                local limit = 500 -- Increased limit for better trap finding
+                local limit = 500
                 local c = 0
-                ShuffleTable(candidates) -- Check random words first
+                ShuffleTable(candidates)
                 for _, w in ipairs(candidates) do
                     c=c+1; if c>limit then break end; if c%30==0 then RunService.Heartbeat:Wait() end
                     local score = 0
                     local last = w:sub(-1):lower()
                     local lastTwo = w:sub(-2):lower()
                     
-                    -- Heavily reward difficult endings
                     if string.find("jqxz", last) then score=score+100 end
                     if string.find("qkvw", last) then score=score+50 end
-                    
-                    -- Heavily penalize easy endings
                     if string.find("ersdty", last) then score=score-100 end
                     
-                    -- The Mindfuck: Check for dead-end endings
                     local replies = GetStartingCount(lastTwo)
-                    if replies == 0 then score = score + 500 -- Massive bonus for a guaranteed trap
-                    elseif replies < 5 then score = score + 200 -- Good bonus for a very hard follow-up
-                    elseif replies > 50 then score = score - 200 -- Penalty for giving too many options
+                    if replies == 0 then score = score + 500
+                    elseif replies < 5 then score = score + 200
+                    elseif replies > 50 then score = score - 200
                     end
                     
-                    score = score - (#w / 2) -- Prefer shorter words to end the game faster
+                    score = score - (#w / 2)
 
                     if score > bestScore then bestScore=score; found=w end
                 end
             elseif isShort then
                 local minLen = 999; for _, w in ipairs(candidates) do if #w < minLen then minLen = #w; found = w end end
-            elseif isFlex then
-                local maxLen = 0; for _, w in ipairs(candidates) do if #w > maxLen then maxLen = #w; found = w end end
             else
                 found = candidates[1]
             end
-            if not found then found = candidates[1] end -- Failsafe
+            if not found then found = candidates[1] end
         end
         
         if found then
@@ -442,7 +467,6 @@ task.spawn(function()
                 if #word >= 3 then
                     table.insert(ALL_WORDS, word)
                     c=c+1
-                    -- Pre-calculate endings for performance
                     local ending = word:sub(-2):lower()
                     if not WordEndings[ending] then WordEndings[ending] = {} end
                     table.insert(WordEndings[ending], word)
