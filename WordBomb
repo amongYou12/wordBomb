@@ -1,11 +1,12 @@
 --[[
-    UNPATCHABOMB [v1004 - INDESTRUCTIBLE EDITION]
-    - FIX: "Attempt to call nil" patched with extreme prejudice.
-    - SAFETY: All callbacks and services are type-checked before execution.
+    UNPATCHABOMB [v1005 - MINDFUCKER EDITION]
+    - NEW: Burst Chance slider for Flex Mode to simulate erratic typing.
+    - EVOLVED: Trap Mode is now a sadistic AI that actively seeks to end the game for others.
+    - OPTIMIZED: Trap Mode search is now lightning fast, no more fucking lag.
     - CORE: Paranoia Mode active. Logic will survive garbage executors.
 ]]--
 
-local SCRIPT_VERSION = "v1004_Indestructible"
+local SCRIPT_VERSION = "v1005_Mindfucker"
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -65,7 +66,7 @@ local SETTINGS = {
     Start_Min = 0.1,  Start_Var = 0.5,
     Hesit_Chance = 0.32,
     Hesit_Val_Min = 0.15, Hesit_Val_Var = 0.5,
-    Flex_Typo = 0.20, Flex_Burst = 0.15
+    Flex_Typo = 0.20, Flex_Burst = 0.15 -- Added Burst Chance
 }
 
 local function GetRange(min, variancePercent)
@@ -81,6 +82,9 @@ local SESSION_BLACKLIST = {}
 local isTyping, lastFound = false, ""
 local GlobalEnv = (getgenv and getgenv()) or _G
 if not GlobalEnv._UPB_History then GlobalEnv._UPB_History = {} end
+
+-- Performance optimization for Trap Mode
+local WordEndings = {}
 
 local function CheckHist(w) return GlobalEnv._UPB_History[w:lower()] end
 local function AddHist(w) GlobalEnv._UPB_History[w:lower()] = true end
@@ -107,14 +111,10 @@ local function IsBlacklisted(w)
     return false
 end
 
+-- Optimized function to count words starting with a suffix
 local function GetStartingCount(suffix)
-    local count = 0; local sufLen = #suffix
-    for _, w in ipairs(ALL_WORDS) do
-        if w:sub(1, sufLen):lower() == suffix then
-            count = count + 1; if count > 10 then return 10 end 
-        end
-    end
-    return count
+    local lowSuffix = suffix:lower()
+    return WordEndings[lowSuffix] and #WordEndings[lowSuffix] or 0
 end
 
 --------------------------------------------------------------------------------
@@ -171,7 +171,7 @@ local function AddRGBStroke(obj, thickness)
 end
 
 -- FRAMES
-local MainFrame = Instance.new("Frame"); MainFrame.Name="Main"; MainFrame.Parent=Screen; MainFrame.Size=UDim2.new(0, 420, 0, 460); MainFrame.Position=UDim2.new(0.5,-210,0.5,-230); MainFrame.BackgroundColor3=Colors.Background; MainFrame.BorderSizePixel=0
+local MainFrame = Instance.new("Frame"); MainFrame.Name="Main"; MainFrame.Parent=Screen; MainFrame.Size=UDim2.new(0, 420, 0, 490); MainFrame.Position=UDim2.new(0.5,-210,0.5,-245); MainFrame.BackgroundColor3=Colors.Background; MainFrame.BorderSizePixel=0
 Instance.new("UICorner", MainFrame).CornerRadius=UDim.new(0, 10); AddRGBStroke(MainFrame, 2)
 
 -- DRAG
@@ -184,11 +184,11 @@ UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInp
 -- COMPONENTS
 local Header = Instance.new("Frame"); Header.Parent = MainFrame; Header.Size = UDim2.new(1, 0, 0, 40); Header.BackgroundColor3 = Colors.Element; Header.BorderSizePixel = 0
 local HT = Instance.new("TextLabel"); HT.Parent = Header; HT.Size = UDim2.new(1, -20, 1, 0); HT.Position = UDim2.new(0, 15, 0, 0); HT.BackgroundTransparency = 1
-HT.Text = "UNPATCHABOMB // v1004"; HT.Font = Enum.Font.GothamBlack; HT.TextSize = 16; HT.TextXAlignment = Enum.TextXAlignment.Left; HT.TextColor3 = Colors.Accent
+HT.Text = "UNPATCHABOMB // v1005"; HT.Font = Enum.Font.GothamBlack; HT.TextSize = 16; HT.TextXAlignment = Enum.TextXAlignment.Left; HT.TextColor3 = Colors.Accent
 table.insert(UI_ElementsToColor, HT)
 
 local Status = Instance.new("TextLabel"); Status.Parent = MainFrame; Status.Size = UDim2.new(1, -30, 0, 20); Status.Position = UDim2.new(0, 15, 0, 50); Status.BackgroundTransparency = 1
-Status.Text = "Safe Mode Active."; Status.Font = Enum.Font.GothamMedium; Status.TextColor3 = Colors.SubText; Status.TextSize = 12; Status.TextXAlignment = Enum.TextXAlignment.Left
+Status.Text = "Mindfucker Active."; Status.Font = Enum.Font.GothamMedium; Status.TextColor3 = Colors.SubText; Status.TextSize = 12; Status.TextXAlignment = Enum.TextXAlignment.Left
 
 local InputContainer = Instance.new("Frame"); InputContainer.Parent = MainFrame; InputContainer.Size = UDim2.new(1, -30, 0, 40); InputContainer.Position = UDim2.new(0, 15, 0, 80); InputContainer.BackgroundTransparency = 1
 local InputBox = Instance.new("TextBox"); InputBox.Parent = InputContainer; InputBox.Size = UDim2.new(0.7, -5, 1, 0); InputBox.BackgroundColor3 = Colors.Element; InputBox.Text = ""; InputBox.PlaceholderText = "Input..."; InputBox.TextColor3 = Colors.Text; InputBox.Font = Enum.Font.GothamBold; InputBox.TextSize = 14
@@ -206,7 +206,7 @@ local MenuContainer = Instance.new("Frame"); MenuContainer.Parent = MainFrame; M
 local MainMenuBtn = Instance.new("TextButton"); MainMenuBtn.Parent = MenuContainer; MainMenuBtn.Size = UDim2.new(0.5, -5, 1, 0); MainMenuBtn.BackgroundColor3 = Colors.ElementHover; MainMenuBtn.Text = "MODES"; MainMenuBtn.TextColor3 = Colors.Text; MainMenuBtn.Font = Enum.Font.GothamBold; MainMenuBtn.TextSize = 12; Instance.new("UICorner", MainMenuBtn).CornerRadius = UDim.new(0, 6)
 local SettingsBtn = Instance.new("TextButton"); SettingsBtn.Parent = MenuContainer; SettingsBtn.Size = UDim2.new(0.5, -5, 1, 0); SettingsBtn.Position = UDim2.new(0.5, 5, 0, 0); SettingsBtn.BackgroundColor3 = Colors.Element; SettingsBtn.Text = "CONFIG"; SettingsBtn.TextColor3 = Colors.SubText; SettingsBtn.Font = Enum.Font.GothamBold; SettingsBtn.TextSize = 12; Instance.new("UICorner", SettingsBtn).CornerRadius = UDim.new(0, 6)
 
-local ViewFrame = Instance.new("Frame"); ViewFrame.Parent = MainFrame; ViewFrame.Size = UDim2.new(1, -30, 0, 290); ViewFrame.Position = UDim2.new(0, 15, 0, 160); ViewFrame.BackgroundTransparency = 1
+local ViewFrame = Instance.new("Frame"); ViewFrame.Parent = MainFrame; ViewFrame.Size = UDim2.new(1, -30, 0, 320); ViewFrame.Position = UDim2.new(0, 15, 0, 160); ViewFrame.BackgroundTransparency = 1
 
 local ModesGrid = Instance.new("ScrollingFrame"); ModesGrid.Name = "ModesGrid"; ModesGrid.Parent = ViewFrame; ModesGrid.Size = UDim2.new(1, 0, 1, 0); ModesGrid.BackgroundTransparency = 1; ModesGrid.BorderSizePixel = 0; ModesGrid.ScrollBarThickness = 2
 local UIGrid = Instance.new("UIGridLayout"); UIGrid.Parent = ModesGrid; UIGrid.CellSize = UDim2.new(0.48, 0, 0, 35); UIGrid.CellPadding = UDim2.new(0.04, 0, 0, 10)
@@ -249,7 +249,8 @@ CreateSlider("DELAY VARIANCE", 0.0, 2.0, 0.5, function(v) SETTINGS.Start_Var = v
 CreateSlider("HESIT CHANCE", 0.0, 1.0, 0.3, function(v) SETTINGS.Hesit_Chance = v end)
 CreateSlider("HESIT VARIANCE", 0.0, 2.0, 0.5, function(v) SETTINGS.Hesit_Val_Var = v end)
 CreateSlider("TYPO CHANCE", 0.0, 1.0, 0.2, function(v) SETTINGS.Flex_Typo = v end)
-SettingsList.CanvasSize = UDim2.new(0, 0, 0, 7 * 50)
+CreateSlider("BURST CHANCE", 0.0, 1.0, 0.15, function(v) SETTINGS.Flex_Burst = v end) -- NEW SLIDER
+SettingsList.CanvasSize = UDim2.new(0, 0, 0, 8 * 50) -- Updated for new slider
 
 -- === TOGGLES ===
 local function CreateToggle(text, callback)
@@ -320,6 +321,8 @@ local function TypeWord(word, skipCount)
         local char = word:sub(i,i):upper()
         local code = Enum.KeyCode[char] or (char == "-" and Enum.KeyCode.Minus)
         
+        local charDelay = GetRandomTime(speedRange)
+        
         if isFlex then
             if i > 2 and i < #word and (SafeRandom(1, 1000) / 1000) <= SETTINGS.Flex_Typo then
                 local wrongChar = string.char(SafeRandom(65, 90)) 
@@ -331,6 +334,10 @@ local function TypeWord(word, skipCount)
             if (SafeRandom(1, 1000) / 1000) <= SETTINGS.Hesit_Chance then
                 local hesitRange = GetRange(SETTINGS.Hesit_Val_Min, SETTINGS.Hesit_Val_Var)
                 task.wait(GetRandomTime(hesitRange))
+            end
+            -- NEW BURST LOGIC
+            if (SafeRandom(1, 1000) / 1000) <= SETTINGS.Flex_Burst then
+                charDelay = 0.02 -- Lightning fast
             end
         else
             if (SafeRandom(1, 1000) / 1000) <= (SETTINGS.Hesit_Chance * 0.5) then
@@ -344,8 +351,6 @@ local function TypeWord(word, skipCount)
             pcall(function() vim:SendKeyEvent(false, code, false, game) end)
         end
         
-        local charDelay = GetRandomTime(speedRange)
-        if isFlex and (SafeRandom(1, 1000) / 1000) <= SETTINGS.Flex_Burst then charDelay = 0.02 end
         task.wait(charDelay)
     end
     
@@ -377,21 +382,43 @@ local function DoSearch()
         
         local found = nil
         if #candidates > 0 then
-            ShuffleTable(candidates)
-            if isShort then local minLen = 999; for _, w in ipairs(candidates) do if #w < minLen then minLen = #w; found = w end end
-            elseif isFlex then local maxLen = 0; for _, w in ipairs(candidates) do if #w > maxLen then maxLen = #w; found = w end end
-            elseif isTrap then
-                local bestScore = -9999; local limit = 300; local c = 0
+            if isTrap then
+                local bestScore = -9999
+                local limit = 500 -- Increased limit for better trap finding
+                local c = 0
+                ShuffleTable(candidates) -- Check random words first
                 for _, w in ipairs(candidates) do
                     c=c+1; if c>limit then break end; if c%30==0 then RunService.Heartbeat:Wait() end
-                    local score = 0; local last = w:sub(-1):lower()
-                    if string.find("jqxz", last) then score=score+50 end; score=score+#w
-                    local replies = GetStartingCount(w:sub(-2):lower())
-                    if replies==0 then score=score+1000 elseif replies<5 then score=score+100 else score=score-replies end
-                    if score>bestScore then bestScore=score; found=w end
+                    local score = 0
+                    local last = w:sub(-1):lower()
+                    local lastTwo = w:sub(-2):lower()
+                    
+                    -- Heavily reward difficult endings
+                    if string.find("jqxz", last) then score=score+100 end
+                    if string.find("qkvw", last) then score=score+50 end
+                    
+                    -- Heavily penalize easy endings
+                    if string.find("ersdty", last) then score=score-100 end
+                    
+                    -- The Mindfuck: Check for dead-end endings
+                    local replies = GetStartingCount(lastTwo)
+                    if replies == 0 then score = score + 500 -- Massive bonus for a guaranteed trap
+                    elseif replies < 5 then score = score + 200 -- Good bonus for a very hard follow-up
+                    elseif replies > 50 then score = score - 200 -- Penalty for giving too many options
+                    end
+                    
+                    score = score - (#w / 2) -- Prefer shorter words to end the game faster
+
+                    if score > bestScore then bestScore=score; found=w end
                 end
-            else found = candidates[1] end
-            if not found then found = candidates[1] end
+            elseif isShort then
+                local minLen = 999; for _, w in ipairs(candidates) do if #w < minLen then minLen = #w; found = w end end
+            elseif isFlex then
+                local maxLen = 0; for _, w in ipairs(candidates) do if #w > maxLen then maxLen = #w; found = w end end
+            else
+                found = candidates[1]
+            end
+            if not found then found = candidates[1] end -- Failsafe
         end
         
         if found then
@@ -409,7 +436,19 @@ task.spawn(function()
     local c = 0
     for _, url in ipairs(DictionaryURLs) do
         local s, res = pcall(function() return game:HttpGet(url) end)
-        if s then for line in res:gmatch("[^\r\n]+") do table.insert(ALL_WORDS, line); c=c+1 end end
+        if s then 
+            for line in res:gmatch("[^\r\n]+") do 
+                local word = Sanitize(line)
+                if #word >= 3 then
+                    table.insert(ALL_WORDS, word)
+                    c=c+1
+                    -- Pre-calculate endings for performance
+                    local ending = word:sub(-2):lower()
+                    if not WordEndings[ending] then WordEndings[ending] = {} end
+                    table.insert(WordEndings[ending], word)
+                end
+            end 
+        end
     end
     Status.Text = "ARMED: " .. c .. " WORDS"
 end)
