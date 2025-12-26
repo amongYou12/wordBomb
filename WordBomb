@@ -1,11 +1,12 @@
 --[[
-    UNPATCHABOMB [v1006 - DUAL-PERSONALITY EDITION]
-    - NEW: Separate settings for Normal and Flex modes.
-    - EVOLVED: Full control over two distinct typing profiles.
+    UNPATCHABOMB [v1007 - HALL OF SHAME EDITION]
+    - NEW: View and manage the session blacklist in a separate window.
+    - NEW: Copy individual blacklisted words to your clipboard.
+    - NEW: Clear the entire session blacklist with one click.
     - CORE: Paranoia Mode active. Logic will survive garbage executors.
 ]]--
 
-local SCRIPT_VERSION = "v1006_DualPersonality"
+local SCRIPT_VERSION = "v1007_HallOfShame"
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -192,11 +193,11 @@ UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInp
 -- COMPONENTS
 local Header = Instance.new("Frame"); Header.Parent = MainFrame; Header.Size = UDim2.new(1, 0, 0, 40); Header.BackgroundColor3 = Colors.Element; Header.BorderSizePixel = 0
 local HT = Instance.new("TextLabel"); HT.Parent = Header; HT.Size = UDim2.new(1, -20, 1, 0); HT.Position = UDim2.new(0, 15, 0, 0); HT.BackgroundTransparency = 1
-HT.Text = "UNPATCHABOMB // v1006"; HT.Font = Enum.Font.GothamBlack; HT.TextSize = 16; HT.TextXAlignment = Enum.TextXAlignment.Left; HT.TextColor3 = Colors.Accent
+HT.Text = "UNPATCHABOMB // v1007"; HT.Font = Enum.Font.GothamBlack; HT.TextSize = 16; HT.TextXAlignment = Enum.TextXAlignment.Left; HT.TextColor3 = Colors.Accent
 table.insert(UI_ElementsToColor, HT)
 
 local Status = Instance.new("TextLabel"); Status.Parent = MainFrame; Status.Size = UDim2.new(1, -30, 0, 20); Status.Position = UDim2.new(0, 15, 0, 50); Status.BackgroundTransparency = 1
-Status.Text = "Dual-Personality Active."; Status.Font = Enum.Font.GothamMedium; Status.TextColor3 = Colors.SubText; Status.TextSize = 12; Status.TextXAlignment = Enum.TextXAlignment.Left
+Status.Text = "Hall of Shame Active."; Status.Font = Enum.Font.GothamMedium; Status.TextColor3 = Colors.SubText; Status.TextSize = 12; Status.TextXAlignment = Enum.TextXAlignment.Left
 
 local InputContainer = Instance.new("Frame"); InputContainer.Parent = MainFrame; InputContainer.Size = UDim2.new(1, -30, 0, 40); InputContainer.Position = UDim2.new(0, 15, 0, 80); InputContainer.BackgroundTransparency = 1
 local InputBox = Instance.new("TextBox"); InputBox.Parent = InputContainer; InputBox.Size = UDim2.new(0.7, -5, 1, 0); InputBox.BackgroundColor3 = Colors.Element; InputBox.Text = ""; InputBox.PlaceholderText = "Input..."; InputBox.TextColor3 = Colors.Text; InputBox.Font = Enum.Font.GothamBold; InputBox.TextSize = 14
@@ -280,7 +281,7 @@ CreateSlider("FLEX HESIT VAR", 0.0, 2.0, FLEX_SETTINGS.Hesit_Val_Var, function(v
 CreateSlider("FLEX TYPO CHANCE", 0.0, 1.0, FLEX_SETTINGS.Flex_Typo, function(v) FLEX_SETTINGS.Flex_Typo = v end)
 CreateSlider("FLEX BURST CHANCE", 0.0, 1.0, FLEX_SETTINGS.Flex_Burst, function(v) FLEX_SETTINGS.Flex_Burst = v end)
 
-SettingsList.CanvasSize = UDim2.new(0, 0, 0, 2 * 25 + 14 * 50) -- Updated for new sliders
+SettingsList.CanvasSize = UDim2.new(0, 0, 0, 2 * 25 + 14 * 50)
 
 -- === TOGGLES ===
 local function CreateToggle(text, callback)
@@ -310,6 +311,56 @@ local WB_T = CreateToggle("Word Bomb BL", function(s, b) WB_Enabled = s; if s an
 CreateActionBtn("Clear History", Color3.fromRGB(255, 100, 100), function() GlobalEnv._UPB_History={} Status.Text="History Cleared." end)
 CreateActionBtn("Clear Input", Colors.SubText, function() InputBox.Text="" end)
 CreateActionBtn("Blacklist Last", Color3.fromRGB(255, 150, 50), function() if lastFound~="" then SESSION_BLACKLIST[lastFound:lower()]=true; Status.Text="Blocked: "..lastFound end end)
+CreateActionBtn("View Blacklist", Color3.fromRGB(100, 150, 255), function()
+    if Screen:FindFirstChild("BlacklistManager") then Screen.BlacklistManager:Destroy() end
+    
+    local BManager = Instance.new("Frame")
+    BManager.Name = "BlacklistManager"
+    BManager.Parent = Screen
+    BManager.Size = UDim2.new(0, 300, 0, 400)
+    BManager.Position = UDim2.new(0.5, -150, 0.5, -200)
+    BManager.BackgroundColor3 = Colors.Background
+    BManager.BorderSizePixel = 0
+    Instance.new("UICorner", BManager).CornerRadius = UDim.new(0, 8)
+    AddRGBStroke(BManager, 1.5)
+    
+    -- Dragging for Blacklist Manager
+    local b_dragging, b_dragStart, b_startPos
+    BManager.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then b_dragging=true; b_dragStart=i.Position; b_startPos=BManager.Position end end)
+    BManager.InputChanged:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseMovement then dragInput=i end end)
+    UserInputService.InputChanged:Connect(function(i) if i==dragInput and b_dragging then local d=i.Position-b_dragStart; BManager.Position=UDim2.new(b_startPos.X.Scale, b_startPos.X.Offset+d.X, b_startPos.Y.Scale, b_startPos.Y.Offset+d.Y) end end)
+    UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then b_dragging=false end end)
+    
+    local BHeader = Instance.new("Frame"); BHeader.Parent = BManager; BHeader.Size = UDim2.new(1, 0, 0, 35); BHeader.BackgroundColor3 = Colors.Element; BHeader.BorderSizePixel = 0
+    Instance.new("UICorner", BHeader).CornerRadius = UDim.new(0, 8, 0, 0)
+    local BTitle = Instance.new("TextLabel"); BTitle.Parent = BHeader; BTitle.Size = UDim2.new(1, -10, 1, 0); BTitle.Position = UDim2.new(0, 5, 0, 0); BTitle.BackgroundTransparency = 1; BTitle.Text = "SESSION BLACKLIST"; BTitle.Font = Enum.Font.GothamBlack; BTitle.TextSize = 14; BTitle.TextColor3 = Colors.Accent
+    table.insert(UI_ElementsToColor, BTitle)
+    
+    local BList = Instance.new("ScrollingFrame"); BList.Parent = BManager; BList.Size = UDim2.new(1, -10, 1, -75); BList.Position = UDim2.new(0, 5, 0, 40); BList.BackgroundColor3 = Color3.fromRGB(10,10,15); BList.BorderSizePixel = 0; BList.ScrollBarThickness = 4
+    Instance.new("UICorner", BList).CornerRadius = UDim.new(0, 6)
+    local BLayout = Instance.new("UIListLayout"); BLayout.Parent = BList; BLayout.Padding = UDim.new(0, 3)
+    
+    local function UpdateList()
+        for _, child in pairs(BList:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end
+        for word, _ in pairs(SESSION_BLACKLIST) do
+            local Entry = Instance.new("Frame"); Entry.Parent = BList; Entry.Size = UDim2.new(1, 0, 0, 25); Entry.BackgroundColor3 = Colors.Element; Instance.new("UICorner", Entry).CornerRadius = UDim.new(0, 4)
+            local WordLabel = Instance.new("TextLabel"); WordLabel.Parent = Entry; WordLabel.Size = UDim2.new(1, -60, 1, 0); WordLabel.Position = UDim2.new(0, 5, 0, 0); WordLabel.BackgroundTransparency = 1; WordLabel.Text = word:upper(); WordLabel.Font = Enum.Font.GothamBold; WordLabel.TextSize = 12; WordLabel.TextXAlignment = Enum.TextXAlignment.Left; WordLabel.TextColor3 = Colors.Text
+            local CopyBtn = Instance.new("TextButton"); CopyBtn.Parent = Entry; CopyBtn.Size = UDim2.new(0, 50, 1, -4); CopyBtn.Position = UDim2.new(1, -55, 0, 2); CopyBtn.BackgroundColor3 = Colors.Accent; CopyBtn.Text = "COPY"; CopyBtn.Font = Enum.Font.GothamBlack; CopyBtn.TextSize = 10; CopyBtn.TextColor3 = Colors.Background; Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 3)
+            CopyBtn.MouseButton1Click:Connect(function()
+                pcall(function() setclipboard(word) end)
+                CopyBtn.Text = "COPIED!"
+                task.wait(0.5)
+                CopyBtn.Text = "COPY"
+            end)
+        end
+        BList.CanvasSize = UDim2.new(0, 0, 0, BLayout.AbsoluteContentSize.Y)
+    end
+
+    local ClearBtn = Instance.new("TextButton"); ClearBtn.Parent = BManager; ClearBtn.Size = UDim2.new(1, -10, 0, 30); ClearBtn.Position = UDim2.new(0, 5, 1, -35); ClearBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50); ClearBtn.Text = "CLEAR ALL"; ClearBtn.Font = Enum.Font.GothamBlack; ClearBtn.TextSize = 12; ClearBtn.TextColor3 = Colors.Text; Instance.new("UICorner", ClearBtn).CornerRadius = UDim.new(0, 6)
+    ClearBtn.MouseButton1Click:Connect(function() SESSION_BLACKLIST = {}; UpdateList(); Status.Text = "Blacklist Cleared." end)
+    
+    UpdateList()
+end)
 
 -- RGB
 task.spawn(function()
@@ -368,7 +419,7 @@ local function TypeWord(word, skipCount)
                 task.wait(GetRandomTime(hesitRange))
             end
             if (SafeRandom(1, 1000) / 1000) <= currentSettings.Flex_Burst then
-                charDelay = 0.02 -- Lightning fast
+                charDelay = 0.02
             end
         else
             if (SafeRandom(1, 1000) / 1000) <= currentSettings.Hesit_Chance then
