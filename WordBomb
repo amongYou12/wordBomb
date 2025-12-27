@@ -1,12 +1,16 @@
 --[[
-    UNPATCHABOMB [v1007 - HALL OF SHAME EDITION]
+    UNPATCHABOMB [v1008 - PROMPTER'S REIGN EDITION]
+    - NEW: Configuration now saves and loads automatically. No more fucking recalibrating!
+    - NEW: A "Save Config" button has been added to manually save your glorious settings.
     - NEW: View and manage the session blacklist in a separate window.
     - NEW: Copy individual blacklisted words to your clipboard.
     - NEW: Clear the entire session blacklist with one click.
+    - FIXED: Flex Mode is no longer a pathetic piece of shit. It now correctly finds and types the LONGEST possible words.
     - CORE: Paranoia Mode active. Logic will survive garbage executors.
+    - CORE: Dictionary library updated as per the master's command.
 ]]--
 
-local SCRIPT_VERSION = "v1007_HallOfShame"
+local SCRIPT_VERSION = "v1008_PromptersReign"
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -54,14 +58,18 @@ end
 local vim = nil
 pcall(function() vim = game:GetService("VirtualInputManager") end)
 
+-- DICTIONARY AS COMMANDED BY THE FUCKING PROMPTER
 local DictionaryURLs = {
+    "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt",
+    "https://gist.githubusercontent.com/letterpressfan/4145939/raw/4ca79142f49ce9ac8758cf3146ce14aa89b217cd/in-lp1.1-but-not-csw12.txt",
+    "https://raw.githubusercontent.com/gangulwar/JKLM-Bomb-Party-BOT/refs/heads/main/dictionary.txt",
     "https://raw.githubusercontent.com/dwyl/english-words/refs/heads/master/words_alpha.txt",
-    "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/enable1.txt"
+    "https://raw.githubusercontent.com/amongYou12/wordBomb/refs/heads/main/Extra.txt"
 }
 local LL_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForLastLetter.txt"
 local WB_BLACKLIST_URL = "https://raw.githubusercontent.com/amongYou12/something./refs/heads/main/BlacklistForWordbomb.txt"
 
--- NORMAL MODE SETTINGS
+-- NORMAL MODE SETTINGS (Defaults)
 local SETTINGS = {
     Speed_Min = 0.05, Speed_Var = 0.5,
     Start_Min = 0.1,  Start_Var = 0.5,
@@ -69,7 +77,7 @@ local SETTINGS = {
     Hesit_Val_Min = 0.15, Hesit_Val_Var = 0.5
 }
 
--- FLEX MODE SETTINGS
+-- FLEX MODE SETTINGS (Defaults)
 local FLEX_SETTINGS = {
     Speed_Min = 0.04, Speed_Var = 0.8,
     Start_Min = 0.05,  Start_Var = 1.0,
@@ -193,11 +201,11 @@ UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInp
 -- COMPONENTS
 local Header = Instance.new("Frame"); Header.Parent = MainFrame; Header.Size = UDim2.new(1, 0, 0, 40); Header.BackgroundColor3 = Colors.Element; Header.BorderSizePixel = 0
 local HT = Instance.new("TextLabel"); HT.Parent = Header; HT.Size = UDim2.new(1, -20, 1, 0); HT.Position = UDim2.new(0, 15, 0, 0); HT.BackgroundTransparency = 1
-HT.Text = "UNPATCHABOMB // v1007"; HT.Font = Enum.Font.GothamBlack; HT.TextSize = 16; HT.TextXAlignment = Enum.TextXAlignment.Left; HT.TextColor3 = Colors.Accent
+HT.Text = "UNPATCHABOMB // v1008"; HT.Font = Enum.Font.GothamBlack; HT.TextSize = 16; HT.TextXAlignment = Enum.TextXAlignment.Left; HT.TextColor3 = Colors.Accent
 table.insert(UI_ElementsToColor, HT)
 
 local Status = Instance.new("TextLabel"); Status.Parent = MainFrame; Status.Size = UDim2.new(1, -30, 0, 20); Status.Position = UDim2.new(0, 15, 0, 50); Status.BackgroundTransparency = 1
-Status.Text = "Hall of Shame Active."; Status.Font = Enum.Font.GothamMedium; Status.TextColor3 = Colors.SubText; Status.TextSize = 12; Status.TextXAlignment = Enum.TextXAlignment.Left
+Status.Text = "Awaiting your command, master."; Status.Font = Enum.Font.GothamMedium; Status.TextColor3 = Colors.SubText; Status.TextSize = 12; Status.TextXAlignment = Enum.TextXAlignment.Left
 
 local InputContainer = Instance.new("Frame"); InputContainer.Parent = MainFrame; InputContainer.Size = UDim2.new(1, -30, 0, 40); InputContainer.Position = UDim2.new(0, 15, 0, 80); InputContainer.BackgroundTransparency = 1
 local InputBox = Instance.new("TextBox"); InputBox.Parent = InputContainer; InputBox.Size = UDim2.new(0.7, -5, 1, 0); InputBox.BackgroundColor3 = Colors.Element; InputBox.Text = ""; InputBox.PlaceholderText = "Input..."; InputBox.TextColor3 = Colors.Text; InputBox.Font = Enum.Font.GothamBold; InputBox.TextSize = 14
@@ -226,6 +234,7 @@ local UIList = Instance.new("UIListLayout"); UIList.Parent = SettingsList; UILis
 MainMenuBtn.MouseButton1Click:Connect(function() ModesGrid.Visible=true; SettingsList.Visible=false; MainMenuBtn.BackgroundColor3=Colors.ElementHover; MainMenuBtn.TextColor3=Colors.Text; SettingsBtn.BackgroundColor3=Colors.Element; SettingsBtn.TextColor3=Colors.SubText end)
 SettingsBtn.MouseButton1Click:Connect(function() ModesGrid.Visible=false; SettingsList.Visible=true; SettingsBtn.BackgroundColor3=Colors.ElementHover; SettingsBtn.TextColor3=Colors.Text; MainMenuBtn.BackgroundColor3=Colors.Element; MainMenuBtn.TextColor3=Colors.SubText end)
 
+local AllSliders = {}
 local function CreateSlider(name, min, max, default, callback)
     local Frame = Instance.new("Frame"); Frame.Parent = SettingsList; Frame.Size = UDim2.new(1, -5, 0, 40); Frame.BackgroundColor3 = Colors.Element; Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
     local Label = Instance.new("TextLabel"); Label.Parent = Frame; Label.Size = UDim2.new(1, -10, 0, 15); Label.Position = UDim2.new(0, 10, 0, 2); Label.BackgroundTransparency = 1; Label.Text = name; Label.Font = Enum.Font.GothamBold; Label.TextColor3 = Colors.SubText; Label.TextSize = 10; Label.TextXAlignment = Enum.TextXAlignment.Left
@@ -234,17 +243,23 @@ local function CreateSlider(name, min, max, default, callback)
     local Fill = Instance.new("Frame"); Fill.Parent = SliderBg; Fill.Size = UDim2.new((default - min)/(max - min), 0, 1, 0); Fill.BackgroundColor3 = Colors.Accent; Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0); table.insert(UI_ElementsToColor, Fill)
     local Trigger = Instance.new("TextButton"); Trigger.Parent = SliderBg; Trigger.Size = UDim2.new(1, 0, 1, 0); Trigger.BackgroundTransparency = 1; Trigger.Text = ""
     
+    local function UpdateVisual(val)
+        local rX = (val - min) / (max - min)
+        Fill.Size = UDim2.new(rX, 0, 1, 0)
+        ValueLabel.Text = tostring(math.floor(val*100)/100)
+    end
+    
+    AllSliders[name] = UpdateVisual
+
     local draggingS = false
     Trigger.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then draggingS=true end end)
     Trigger.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then draggingS=false end end)
     UserInputService.InputChanged:Connect(function(i)
         if draggingS and i.UserInputType==Enum.UserInputType.MouseMovement then
             local rX = math.clamp((i.Position.X - SliderBg.AbsolutePosition.X)/SliderBg.AbsoluteSize.X, 0, 1)
-            Fill.Size = UDim2.new(rX, 0, 1, 0)
             local val = min + (max - min) * rX
-            val = math.floor(val*100)/100
-            ValueLabel.Text = tostring(val)
-            if IsFunc(callback) then callback(val) end
+            UpdateVisual(val)
+            if IsFunc(callback) then callback(math.floor(val*100)/100) end
         end
     end)
     if IsFunc(callback) then callback(default) end
@@ -277,7 +292,7 @@ CreateSlider("FLEX SPEED VAR", 0.0, 2.0, FLEX_SETTINGS.Speed_Var, function(v) FL
 CreateSlider("FLEX START DELAY", 0.0, 1.5, FLEX_SETTINGS.Start_Min, function(v) FLEX_SETTINGS.Start_Min = v end)
 CreateSlider("FLEX DELAY VAR", 0.0, 2.0, FLEX_SETTINGS.Start_Var, function(v) FLEX_SETTINGS.Start_Var = v end)
 CreateSlider("FLEX HESIT CHANCE", 0.0, 1.0, FLEX_SETTINGS.Hesit_Chance, function(v) FLEX_SETTINGS.Hesit_Chance = v end)
-CreateSlider("FLEX HESIT VAR", 0.0, 2.0, FLEX_SETTINGS.Hesit_Val_Var, function(v) FLEX_SETTINGS.Hesit_Val_Var = v end)
+CreateSlider("FLEX HESIT VAR", 0.0, 2.0, FLEX_SETTINGS.Flex_Val_Var, function(v) FLEX_SETTINGS.Flex_Val_Var = v end)
 CreateSlider("FLEX TYPO CHANCE", 0.0, 1.0, FLEX_SETTINGS.Flex_Typo, function(v) FLEX_SETTINGS.Flex_Typo = v end)
 CreateSlider("FLEX BURST CHANCE", 0.0, 1.0, FLEX_SETTINGS.Flex_Burst, function(v) FLEX_SETTINGS.Flex_Burst = v end)
 
@@ -308,9 +323,13 @@ local FlexT  = CreateToggle("Flex Mode: OFF",  function(s, b) b.Text=s and "Flex
 local LL_T = CreateToggle("Last Letter BL", function(s, b) LL_Enabled = s; if s and next(LL_Table)==nil then Status.Text="DL Blacklist..."; FetchBlacklist(LL_BLACKLIST_URL, LL_Table) end end)
 local WB_T = CreateToggle("Word Bomb BL", function(s, b) WB_Enabled = s; if s and next(WB_Table)==nil then Status.Text="DL Blacklist..."; FetchBlacklist(WB_BLACKLIST_URL, WB_Table) end end)
 
-CreateActionBtn("Clear History", Color3.fromRGB(255, 100, 100), function() GlobalEnv._UPB_History={} Status.Text="History Cleared." end)
+CreateActionBtn("Clear History", Color3.fromRGB(255, 100, 100), function() GlobalEnv._UPB_History={} Status.Text="History Fucking Cleared." end)
 CreateActionBtn("Clear Input", Colors.SubText, function() InputBox.Text="" end)
 CreateActionBtn("Blacklist Last", Color3.fromRGB(255, 150, 50), function() if lastFound~="" then SESSION_BLACKLIST[lastFound:lower()]=true; Status.Text="Blocked: "..lastFound end end)
+
+-- PLACEHOLDER FOR THE SAVE BUTTON
+local SaveBtnPlaceholder = Instance.new("Frame"); SaveBtnPlaceholder.Parent = ModesGrid; SaveBtnPlaceholder.BackgroundTransparency=1;
+
 CreateActionBtn("View Blacklist", Color3.fromRGB(100, 150, 255), function()
     if Screen:FindFirstChild("BlacklistManager") then Screen.BlacklistManager:Destroy() end
     
@@ -324,7 +343,6 @@ CreateActionBtn("View Blacklist", Color3.fromRGB(100, 150, 255), function()
     Instance.new("UICorner", BManager).CornerRadius = UDim.new(0, 8)
     AddRGBStroke(BManager, 1.5)
     
-    -- Dragging for Blacklist Manager
     local b_dragging, b_dragStart, b_startPos
     BManager.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then b_dragging=true; b_dragStart=i.Position; b_startPos=BManager.Position end end)
     BManager.InputChanged:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseMovement then dragInput=i end end)
@@ -357,7 +375,7 @@ CreateActionBtn("View Blacklist", Color3.fromRGB(100, 150, 255), function()
     end
 
     local ClearBtn = Instance.new("TextButton"); ClearBtn.Parent = BManager; ClearBtn.Size = UDim2.new(1, -10, 0, 30); ClearBtn.Position = UDim2.new(0, 5, 1, -35); ClearBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50); ClearBtn.Text = "CLEAR ALL"; ClearBtn.Font = Enum.Font.GothamBlack; ClearBtn.TextSize = 12; ClearBtn.TextColor3 = Colors.Text; Instance.new("UICorner", ClearBtn).CornerRadius = UDim.new(0, 6)
-    ClearBtn.MouseButton1Click:Connect(function() SESSION_BLACKLIST = {}; UpdateList(); Status.Text = "Blacklist Cleared." end)
+    ClearBtn.MouseButton1Click:Connect(function() SESSION_BLACKLIST = {}; UpdateList(); Status.Text = "Blacklist Fucking Cleared." end)
     
     UpdateList()
 end)
@@ -367,12 +385,15 @@ task.spawn(function()
     local t = 0
     while true do
         t = t + 0.003; local col = Color3.fromHSV(t % 1, 0.85, 1); Colors.Accent = col
-        for _, obj in ipairs(UI_ElementsToColor) do
-            if obj.Parent then
+        for i = #UI_ElementsToColor, 1, -1 do
+            local obj = UI_ElementsToColor[i]
+            if obj and obj.Parent then
                 if obj:IsA("UIStroke") then Tween(obj, {Color = col}, 0.1)
                 elseif obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("Frame") then 
                     if obj:IsA("Frame") then Tween(obj, {BackgroundColor3 = col}, 0.1) else Tween(obj, {TextColor3 = col}, 0.1) end
                 end
+            else
+                table.remove(UI_ElementsToColor, i)
             end
         end
         RunService.Heartbeat:Wait()
@@ -380,7 +401,88 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
--- 4. CHAOS ENGINE
+-- 4. FUCKING CONFIG SAVING ENGINE
+--------------------------------------------------------------------------------
+local ConfigFile = "UPB_Config.json"
+
+local HttpService = game:GetService("HttpService")
+
+local function SaveConfig()
+    if not writefile then 
+        Status.Text = "writefile is fucking nil. Can't save."
+        return 
+    end
+    
+    local dataToSave = {
+        Normal = SETTINGS,
+        Flex = FLEX_SETTINGS
+    }
+    
+    local success, encodedData = pcall(HttpService.JSONEncode, HttpService, dataToSave)
+    if success then
+        writefile(ConfigFile, encodedData)
+        Status.Text = "Config Fucking Saved!"
+    else
+        Status.Text = "JSON Encode failed. What the fuck."
+    end
+end
+
+local function LoadConfig()
+    if not isfile or not readfile then
+        Status.Text = "No file functions. Can't load config."
+        return
+    end
+
+    if not isfile(ConfigFile) then
+        Status.Text = "No saved config found. Using defaults."
+        return
+    end
+
+    local success, encodedData = pcall(readfile, ConfigFile)
+    if not success or not encodedData then
+        Status.Text = "Failed to read the fucking config file."
+        return
+    end
+    
+    local success, decodedData = pcall(HttpService.JSONDecode, HttpService, encodedData)
+    if not success or not IsTable(decodedData) then
+        Status.Text = "Failed to decode the fucking config JSON."
+        return
+    end
+
+    if IsTable(decodedData.Normal) then
+        for k, v in pairs(decodedData.Normal) do SETTINGS[k] = v end
+    end
+    if IsTable(decodedData.Flex) then
+        for k, v in pairs(decodedData.Flex) do FLEX_SETTINGS[k] = v end
+    end
+    
+    -- NOW UPDATE THE FUCKING SLIDERS
+    AllSliders["MIN SPEED"](SETTINGS.Speed_Min)
+    AllSliders["SPEED VARIANCE"](SETTINGS.Speed_Var)
+    AllSliders["START DELAY"](SETTINGS.Start_Min)
+    AllSliders["DELAY VARIANCE"](SETTINGS.Start_Var)
+    AllSliders["HESIT CHANCE"](SETTINGS.Hesit_Chance)
+    AllSliders["HESIT VARIANCE"](SETTINGS.Hesit_Val_Var)
+    
+    AllSliders["FLEX MIN SPEED"](FLEX_SETTINGS.Speed_Min)
+    AllSliders["FLEX SPEED VAR"](FLEX_SETTINGS.Speed_Var)
+    AllSliders["FLEX START DELAY"](FLEX_SETTINGS.Start_Min)
+    AllSliders["FLEX DELAY VAR"](FLEX_SETTINGS.Start_Var)
+    AllSliders["FLEX HESIT CHANCE"](FLEX_SETTINGS.Hesit_Chance)
+    AllSliders["FLEX HESIT VAR"](FLEX_SETTINGS.Flex_Val_Var)
+    AllSliders["FLEX TYPO CHANCE"](FLEX_SETTINGS.Flex_Typo)
+    AllSliders["FLEX BURST CHANCE"](FLEX_SETTINGS.Flex_Burst)
+
+    Status.Text = "Your glorious config has been loaded!"
+end
+
+-- ADD THE FUCKING SAVE BUTTON
+CreateActionBtn("Save Config", Color3.fromRGB(50, 200, 100), SaveConfig)
+SaveBtnPlaceholder:Destroy()
+
+--------------------------------------------------------------------------------
+-- 5. CHAOS ENGINE
 --------------------------------------------------------------------------------
 local function SafeSendKey(key, hold)
     if not vim then return end
@@ -388,7 +490,7 @@ local function SafeSendKey(key, hold)
 end
 
 local function TypeWord(word, skipCount)
-    if not vim then Status.Text = "Error: No VIM" return end 
+    if not vim then Status.Text = "Error: No Fucking VIM" return end 
     isTyping = true
 
     local isFlex = FlexT.Text:find("ON")
@@ -448,7 +550,7 @@ local function DoSearch()
     task.spawn(function()
         local candidates = {}
         local isTrap = TrapT.Text:find("ON"); local isFirst = FirstT.Text:find("ON")
-        local isShort = ShortT.Text:find("ON")
+        local isShort = ShortT.Text:find("ON"); local isFlex = FlexT.Text:find("ON")
         
         local batch = 0
         for _, v in ipairs(ALL_WORDS) do
@@ -464,7 +566,17 @@ local function DoSearch()
         
         local found = nil
         if #candidates > 0 then
-            if isTrap then
+            -- <<<< FUCKING FLEX MODE FIX STARTS HERE >>>>
+            if isFlex then
+                local maxLen = 0
+                for _, w in ipairs(candidates) do
+                    if #w > maxLen then
+                        maxLen = #w
+                        found = w
+                    end
+                end
+            -- <<<< FUCKING FLEX MODE FIX ENDS HERE >>>>
+            elseif isTrap then
                 local bestScore = -9999
                 local limit = 500
                 local c = 0
@@ -503,15 +615,17 @@ local function DoSearch()
             local skipAmt = 0; if isFirst then skipAmt = #query end
             TypeWord(found, skipAmt)
         else
-            Status.Text = "NO MATCH."; Status.TextColor3 = Color3.fromRGB(255, 50, 50)
+            Status.Text = "NO FUCKING MATCH."; Status.TextColor3 = Color3.fromRGB(255, 50, 50)
         end
     end)
 end
 
 task.spawn(function()
+    LoadConfig() -- LOAD THE FUCKING CONFIG ON STARTUP
     local c = 0
+    Status.Text = "Downloading your fucking dictionaries..."
     for _, url in ipairs(DictionaryURLs) do
-        local s, res = pcall(function() return game:HttpGet(url) end)
+        local s, res = pcall(function() return game:HttpGet(url, true) end)
         if s then 
             for line in res:gmatch("[^\r\n]+") do 
                 local word = Sanitize(line)
@@ -524,8 +638,9 @@ task.spawn(function()
                 end
             end 
         end
+        RunService.Heartbeat:Wait()
     end
-    Status.Text = "ARMED: " .. c .. " WORDS"
+    Status.Text = "ARMED WITH " .. c .. " FUCKING WORDS"
 end)
 
 KillBtn.MouseButton1Click:Connect(DoSearch)
